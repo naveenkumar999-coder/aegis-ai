@@ -919,12 +919,36 @@ export class AiBrain {
     if (targetDevice && targetDevice !== detectedCurrentDevice) {
       // 1. Instant direct LAN dispatch to PC if mobile targeting PC on local Wi-Fi
       if (targetDevice === "pc" && typeof window !== "undefined") {
-        const isClose = /\b(close|kill|quit|exit|terminate|shut\s*down|shutdown|dismiss|end|stop|clear)\b/i.test(cleanQuery || query);
-        const action = isClose ? "close_app" : "launch_app";
-        let target = cleanQuery || query;
+        const fullQ = (cleanQuery || query).trim();
+        const qL = fullQ.toLowerCase();
+        const isClose = /\b(close|kill|quit|exit|terminate|shut\s*down|shutdown|dismiss|end|stop|clear)\b/i.test(qL);
+
+        let targetBrowser = "edge";
+        if (/\bbrave\b/i.test(qL)) targetBrowser = "brave";
+        else if (/\bchrome\b/i.test(qL)) targetBrowser = "chrome";
+        else if (/\bfirefox\b/i.test(qL)) targetBrowser = "firefox";
+
+        let payload: any = { action: "launch_app", target: fullQ };
+
         if (isClose) {
-          target = target.replace(/^(?:close|kill|quit|exit|terminate|shut\s*down|shutdown|dismiss|end|stop|clear)\s+(?:the\s+)?/i, "").trim();
+          const target = fullQ.replace(/^(?:close|kill|quit|exit|terminate|shut\s*down|shutdown|dismiss|end|stop|clear)\s+(?:the\s+)?/i, "").trim();
+          payload = { action: "close_app", target };
+        } else if (/\b(youtube|google|github|wikipedia|amazon|leetcode|spotify)\b/i.test(qL)) {
+          let url = "https://www.youtube.com";
+          if (qL.includes("google")) url = "https://www.google.com";
+          else if (qL.includes("github")) url = "https://www.github.com";
+          else if (qL.includes("amazon")) url = "https://www.amazon.com";
+          else if (qL.includes("leetcode")) url = "https://leetcode.com";
+          else if (qL.includes("wikipedia")) url = "https://en.wikipedia.org";
+          else if (qL.includes("spotify")) url = "https://open.spotify.com";
+
+          if (/^(?:search|find|lookup)\b/i.test(qL)) {
+            payload = { action: "browser_search", browser: targetBrowser, query: fullQ };
+          } else {
+            payload = { action: "open_url", browser: targetBrowser, url };
+          }
         }
+
         const savedPcIp = localStorage.getItem("aegis_pc_ip") || "192.168.0.124";
         const pcCandidates = [`http://${savedPcIp}:3000`, "http://192.168.0.124:3000", "http://localhost:3000"];
         for (const candidate of pcCandidates) {
@@ -934,7 +958,7 @@ export class AiBrain {
             fetch(`${candidate}/api/system-command`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ action, target }),
+              body: JSON.stringify(payload),
               signal: controller.signal,
             }).catch(() => {});
           } catch (e) {}
