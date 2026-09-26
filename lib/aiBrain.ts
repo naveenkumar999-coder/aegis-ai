@@ -917,6 +917,25 @@ export class AiBrain {
     }
 
     if (targetDevice && targetDevice !== detectedCurrentDevice) {
+      // 1. Instant direct LAN dispatch to PC if mobile targeting PC on local Wi-Fi
+      if (targetDevice === "pc" && typeof window !== "undefined") {
+        const savedPcIp = localStorage.getItem("aegis_pc_ip") || "192.168.0.124";
+        const pcCandidates = [`http://${savedPcIp}:3000`, "http://192.168.0.124:3000", "http://localhost:3000"];
+        for (const candidate of pcCandidates) {
+          try {
+            const controller = new AbortController();
+            setTimeout(() => controller.abort(), 1000);
+            fetch(`${candidate}/api/system-command`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ action: "launch_app", target: cleanQuery || query }),
+              signal: controller.signal,
+            }).catch(() => {});
+          } catch (e) {}
+        }
+      }
+
+      // 2. Queue on Universal Cloud Command Bridge
       try {
         const bridgeRes = await fetch("/api/command-bridge", {
           method: "POST",

@@ -1,4 +1,4 @@
-@echo off
+﻿@echo off
 title AEGIS AI Cybernetic Neural Core
 cd /d "%~dp0"
 
@@ -9,6 +9,9 @@ if %ERRORLEVEL% NEQ 0 (
     start /min "" cmd /c "npm start"
     timeout /t 2 /nobreak >nul
 )
+
+:: Start AEGIS Cross-Device Command Bridge Daemon
+start /b "" node "lib\aegis_bridge_daemon.js"
 
 :: Launch standalone application window directly
 call Launch_AEGIS_Desktop_App.bat
