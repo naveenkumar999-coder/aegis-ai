@@ -1,0 +1,143 @@
+[
+  {
+    "id": "skill_disk_space",
+    "name": "Check Drive Space",
+    "description": "Inspect total and free space across all system drives in GB",
+    "triggers": [
+      "disk space",
+      "drive space",
+      "storage space",
+      "free space on drive",
+      "hard disk space",
+      "disk usage"
+    ],
+    "language": "powershell",
+    "code": "Get-PSDrive -PSProvider 'FileSystem' | Select-Object Name, @{Name=\"FreeGB\";Expression={[math]::Round($_.Free/1GB,2)}}, @{Name=\"UsedGB\";Expression={[math]::Round(($_.Used)/1GB,2)}}, @{Name=\"TotalGB\";Expression={[math]::Round(($_.Used + $_.Free)/1GB,2)}} | Format-Table -AutoSize | Out-String",
+    "createdAt": "2026-09-17T11:10:38.527Z",
+    "lastUsedAt": "2026-09-17T11:13:42.216Z",
+    "useCount": 3
+  },
+  {
+    "id": "skill_top_processes",
+    "name": "Top Memory Processes",
+    "description": "List the top 5 running processes consuming the highest RAM memory",
+    "triggers": [
+      "top processes",
+      "memory hungry",
+      "high memory",
+      "highest memory",
+      "what is using my ram",
+      "top ram processes"
+    ],
+    "language": "powershell",
+    "code": "Get-Process | Sort-Object WorkingSet -Descending | Select-Object -First 5 ProcessName, @{Name=\"RAM_MB\";Expression={[math]::Round($_.WorkingSet/1MB,1)}}, Id | Format-Table -AutoSize | Out-String",
+    "createdAt": "2026-09-17T11:10:38.528Z",
+    "lastUsedAt": "2026-09-17T11:10:59.193Z",
+    "useCount": 2
+  },
+  {
+    "id": "skill_battery_status",
+    "name": "Battery & Power Status",
+    "description": "Check laptop battery percentage and power plug status",
+    "triggers": [
+      "battery",
+      "battery percentage",
+      "battery health",
+      "power status",
+      "is laptop charging",
+      "charging status"
+    ],
+    "language": "powershell",
+    "code": "Get-WmiObject -Class BatteryStatus -Namespace root\\wmi -ErrorAction SilentlyContinue | ForEach-Object { \"Power Online: \" + $_.PowerOnline + \" | Remaining Capacity: \" + $_.RemainingCapacity } ; (Get-WmiObject -Class Win32_Battery -ErrorAction SilentlyContinue) | Select-Object EstimatedChargeRemaining, BatteryStatus, EstimatedRunTime | Out-String",
+    "createdAt": "2026-09-17T11:10:38.528Z",
+    "lastUsedAt": "2026-09-17T11:10:38.528Z",
+    "useCount": 1
+  },
+  {
+    "id": "skill_network_ping",
+    "name": "Network Latency Check",
+    "description": "Ping google.com to measure internet connectivity and millisecond latency",
+    "triggers": [
+      "network latency",
+      "ping google",
+      "internet speed",
+      "test latency",
+      "test ping",
+      "is internet working",
+      "ping test"
+    ],
+    "language": "powershell",
+    "code": "Test-Connection -ComputerName 8.8.8.8 -Count 2 | Select-Object Address, ResponseTime | Out-String",
+    "createdAt": "2026-09-17T11:10:38.528Z",
+    "lastUsedAt": "2026-09-17T11:10:38.528Z",
+    "useCount": 1
+  },
+  {
+    "id": "skill_clipboard_read",
+    "name": "Read Clipboard Text",
+    "description": "Extract current copied text from Windows clipboard",
+    "triggers": [
+      "read clipboard",
+      "what is in my clipboard",
+      "clipboard content",
+      "copied text",
+      "show clipboard"
+    ],
+    "language": "powershell",
+    "code": "Get-Clipboard | Out-String",
+    "createdAt": "2026-09-17T11:10:38.528Z",
+    "lastUsedAt": "2026-09-17T11:10:38.528Z",
+    "useCount": 1
+  },
+  {
+    "id": "skill_wifi_networks",
+    "name": "Scan Wi-Fi Networks",
+    "description": "Scan all nearby wireless networks and signal quality",
+    "triggers": [
+      "scan wifi",
+      "available wifi",
+      "show wifi",
+      "wifi networks",
+      "nearby networks",
+      "scan wireless"
+    ],
+    "language": "powershell",
+    "code": "netsh wlan show networks mode=Bssid | Out-String",
+    "createdAt": "2026-09-17T11:10:38.528Z",
+    "lastUsedAt": "2026-09-17T11:10:38.528Z",
+    "useCount": 1
+  },
+  {
+    "id": "skill_active_ports",
+    "name": "Active Listening Ports",
+    "description": "Show local listening network ports and services",
+    "triggers": [
+      "listening ports",
+      "open ports",
+      "active ports",
+      "network ports",
+      "check port"
+    ],
+    "language": "powershell",
+    "code": "Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue | Select-Object LocalAddress, LocalPort, OwningProcess -First 10 | Format-Table -AutoSize | Out-String",
+    "createdAt": "2026-09-17T11:10:38.528Z",
+    "lastUsedAt": "2026-09-17T11:10:38.528Z",
+    "useCount": 1
+  },
+  {
+    "id": "skill_1789643461047_j38b",
+    "name": "Check IP Configuration",
+    "description": "Retrieves local network IPv4 and IPv6 addresses and default gateway",
+    "triggers": [
+      "ip address",
+      "my ip",
+      "local ip",
+      "network config"
+    ],
+    "language": "powershell",
+    "code": "Get-NetIPAddress -AddressFamily IPv4 | Where-Object {$_.InterfaceAlias -notlike \"*Loopback*\"} | Select-Object InterfaceAlias, IPAddress | Format-Table -AutoSize | Out-String",
+    "createdAt": "2026-09-17T11:11:01.047Z",
+    "lastUsedAt": "2026-09-17T11:16:08.879Z",
+    "useCount": 4
+  }
+]

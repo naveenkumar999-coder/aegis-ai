@@ -1,0 +1,17 @@
+{
+  "name": "MONDAY Orb AI Assistant",
+  "short_name": "MONDAY",
+  "description": "Holographic 3D AI assistant with voice control, task execution, gesture tracking, and OS popups.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#ffaa30",
+  "icons": [
+    {
+      "src": "/docs/screenshot.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
