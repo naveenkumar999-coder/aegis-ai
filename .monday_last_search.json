@@ -1,7 +1,8 @@
 {
-  "type": "web",
-  "query": "kaggle",
+  "type": "url",
+  "query": "https://www.youtube.com",
+  "destination": "https://www.youtube.com",
   "platform": "web",
   "bName": "brave",
-  "timestamp": 1790065469103
+  "timestamp": 1790406214356
 }

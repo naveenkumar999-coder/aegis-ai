@@ -470,12 +470,20 @@ export class AiBrain {
 
     if (hasBrowserDirective || hasWebLinkKeyword) {
       let cleanQuery = q
-        .replace(/^(?:now\s+|please\s+)?(?:open|launch|start|run|search|find|lookup|browse|show|get)\s+/i, "")
+        .replace(/^(?:now\s+|please\s+)?(?:open|launch|start|run|search|find|lookup|browse|show|get|go\s+to|goto|visit)\s+/i, "")
         .replace(/\b(in\s+(?:the\s+)?browser|on\s+(?:the\s+)?browser|in\s+edge|on\s+edge|in\s+chrome|on\s+chrome|in\s+brave|on\s+brave|in\s+firefox|on\s+firefox|link\s+on\s+browser|link\s+in\s+browser|link\s+on|link\s+in|website|webpage|web\s+site|web\s+page|web|browser|link)\b/gi, "")
         .replace(/\b(for|about|of|to)\b/gi, "")
         .replace(/[?.,!]/g, "")
         .replace(/\s+/g, " ")
         .trim();
+
+      // Check if user simply said "open brave" / "open browser" / "open chrome"
+      if (!cleanQuery || cleanQuery === "brave" || cleanQuery === "chrome" || cleanQuery === "edge" || cleanQuery === "browser" || cleanQuery === "firefox") {
+        return {
+          intent: "LAUNCH_APP" as const,
+          entities: { app: browser, apps: [browser] },
+        };
+      }
 
       const portal = findPortalMatch(cleanQuery);
       if (portal) {
@@ -485,9 +493,22 @@ export class AiBrain {
         };
       }
 
+      const isSearchDirective = /^(?:search|find|lookup|look\s+up|google)\b/i.test(q);
+      if (!isSearchDirective) {
+        // Open website intent: e.g. "open cricbuzz in brave", "open reddit in brave"
+        let domainUrl = cleanQuery.includes(".")
+          ? (cleanQuery.startsWith("http") ? cleanQuery : `https://${cleanQuery}`)
+          : `https://www.${cleanQuery.replace(/[^a-z0-9-]/gi, "")}.com`;
+
+        return {
+          intent: "OPEN_URL" as const,
+          entities: { url: domainUrl, siteName: cleanQuery.toUpperCase(), browser },
+        };
+      }
+
       return {
         intent: "SEARCH" as const,
-        entities: { searchQuery: cleanQuery || "files", platform: "web", browser },
+        entities: { searchQuery: cleanQuery || "web", platform: "web", browser },
       };
     }
 
@@ -920,34 +941,7 @@ export class AiBrain {
       // 1. Instant direct LAN dispatch to PC if mobile targeting PC on local Wi-Fi
       if (targetDevice === "pc" && typeof window !== "undefined") {
         const fullQ = (cleanQuery || query).trim();
-        const qL = fullQ.toLowerCase();
-        const isClose = /\b(close|kill|quit|exit|terminate|shut\s*down|shutdown|dismiss|end|stop|clear)\b/i.test(qL);
-
-        let targetBrowser = "edge";
-        if (/\bbrave\b/i.test(qL)) targetBrowser = "brave";
-        else if (/\bchrome\b/i.test(qL)) targetBrowser = "chrome";
-        else if (/\bfirefox\b/i.test(qL)) targetBrowser = "firefox";
-
-        let payload: any = { action: "launch_app", target: fullQ };
-
-        if (isClose) {
-          const target = fullQ.replace(/^(?:close|kill|quit|exit|terminate|shut\s*down|shutdown|dismiss|end|stop|clear)\s+(?:the\s+)?/i, "").trim();
-          payload = { action: "close_app", target };
-        } else if (/\b(youtube|google|github|wikipedia|amazon|leetcode|spotify)\b/i.test(qL)) {
-          let url = "https://www.youtube.com";
-          if (qL.includes("google")) url = "https://www.google.com";
-          else if (qL.includes("github")) url = "https://www.github.com";
-          else if (qL.includes("amazon")) url = "https://www.amazon.com";
-          else if (qL.includes("leetcode")) url = "https://leetcode.com";
-          else if (qL.includes("wikipedia")) url = "https://en.wikipedia.org";
-          else if (qL.includes("spotify")) url = "https://open.spotify.com";
-
-          if (/^(?:search|find|lookup)\b/i.test(qL)) {
-            payload = { action: "browser_search", browser: targetBrowser, query: fullQ };
-          } else {
-            payload = { action: "open_url", browser: targetBrowser, url };
-          }
-        }
+        const payload = { action: "execute_query", query: fullQ };
 
         const savedPcIp = localStorage.getItem("aegis_pc_ip") || "192.168.0.124";
         const pcCandidates = [`http://${savedPcIp}:3000`, "http://192.168.0.124:3000", "http://localhost:3000"];
@@ -1588,6 +1582,18 @@ export class AiBrain {
       const directSearchUrl = (nlp.entities as any).searchUrl;
       const pName = (nlp.entities as any).platformName || (platform ? platform.toUpperCase() : "Web");
 
+      if (effectiveDevice === "mobile") {
+        const searchUrl = directSearchUrl || (platform && platform !== "web" ? `https://www.google.com/search?q=site%3A${platform}+${encodeURIComponent(searchQuery)}` : `https://www.google.com/search?q=${encodeURIComponent(searchQuery)}`);
+        if (typeof window !== "undefined") {
+          window.open(searchUrl, "_blank") || (window.location.href = searchUrl);
+        }
+        return {
+          toolName: "Universal App & Web Search Engine",
+          output: `Searched for "${searchQuery}" on your mobile device, Boss!`,
+          data: { query: searchQuery, url: searchUrl },
+        };
+      }
+
       try {
         const res = await fetch("/api/system-command", {
           method: "POST",
@@ -2126,11 +2132,17 @@ export class AiBrain {
       q.includes("url") ||
       q.includes("website") ||
       q.includes("address") ||
-      q.includes("open youtube") ||
-      q.includes("open google") ||
-      q.includes("open github") ||
-      q.includes("open wikipedia") ||
-      q.includes("open chatgpt");
+      q.includes("in brave") ||
+      q.includes("on brave") ||
+      q.includes("in chrome") ||
+      q.includes("on chrome") ||
+      q.includes("in edge") ||
+      q.includes("on edge") ||
+      q.includes("in browser") ||
+      q.includes("on browser") ||
+      findPortalMatch(q) !== undefined ||
+      q.startsWith("open ") ||
+      q.startsWith("go to ");
 
     if (isLinkReq) {
       let targetUrl = "";
@@ -2187,21 +2199,30 @@ export class AiBrain {
             } else if (site.includes(".")) {
               targetUrl = `https://${site}`;
               siteName = site.toUpperCase();
+            } else {
+              const cleanDomain = site.replace(/[^a-z0-9-]/gi, "");
+              if (cleanDomain.length > 0) {
+                targetUrl = `https://www.${cleanDomain}.com`;
+                siteName = cleanDomain.toUpperCase();
+              }
             }
           }
         }
       }
 
-      // Detect browser
-      let bTarget = "edge";
+      // Detect browser (default to brave)
+      let bTarget = "brave";
       if (/\b(chrome|google chrome)\b/i.test(q)) bTarget = "chrome";
       else if (/\b(brave)\b/i.test(q)) bTarget = "brave";
       else if (/\b(firefox)\b/i.test(q)) bTarget = "firefox";
+      else if (/\b(edge)\b/i.test(q)) bTarget = "edge";
 
       if (targetUrl) {
         if (effectiveDevice === "mobile") {
           try {
-            window.location.href = targetUrl;
+            if (typeof window !== "undefined") {
+              window.open(targetUrl, "_blank") || (window.location.href = targetUrl);
+            }
             return {
               toolName: "Link Retrieval & Web Navigation Engine",
               output: `Opened ${siteName} on your mobile device, Boss!`,

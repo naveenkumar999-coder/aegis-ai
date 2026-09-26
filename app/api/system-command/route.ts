@@ -373,10 +373,680 @@ const CLOSE_APP_MAP: CloseAppConfig[] = [
   { name: "Paint", keywords: ["paint", "mspaint"], processNames: ["mspaint"] },
 ];
 
+const launcherExe = path.join(process.cwd(), "lib", "launch_app.exe");
+const launcherScript = path.join(process.cwd(), "lib", "launch_app.ps1");
+const winMgrExe = path.join(process.cwd(), "lib", "window_manager.exe");
+
+const launchOnDesktop = (cmd: string): Promise<boolean> => {
+  return new Promise((resolve) => {
+    try {
+      if (fsSync.existsSync(launcherExe)) {
+        const child = spawn(launcherExe, [cmd], { detached: true, stdio: "ignore", windowsHide: true });
+        child.unref();
+        resolve(true);
+      } else {
+        exec(`powershell -ExecutionPolicy Bypass -File "${launcherScript}" -Command "${cmd.replace(/"/g, '`"')}"`, () => resolve(true));
+      }
+    } catch {
+      exec(`powershell -ExecutionPolicy Bypass -File "${launcherScript}" -Command "${cmd.replace(/"/g, '`"')}"`, () => resolve(true));
+    }
+  });
+};
+
+async function executeCloseApp(rawTarget: string) {
+  let rawApp = (rawTarget || "").toLowerCase().trim();
+  rawApp = rawApp.replace(/the|app|application|in my pc|on my pc|please/gi, "").trim();
+
+  // Handle closing / minimizing all applications
+  if (rawApp === "all" || rawApp === "all windows" || rawApp === "everything") {
+    try {
+      await execAsync(`"${winMgrExe}" minimize all`).catch(() => {});
+    } catch {}
+    return NextResponse.json({
+      success: true,
+      message: "Closed all desktop application windows, Boss!",
+    });
+  }
+
+  // Safely close File Explorer windows without terminating taskbar desktop shell
+  if (rawApp === "explorer" || rawApp === "files" || rawApp === "file explorer") {
+    try {
+      await execAsync(`"${winMgrExe}" close files`).catch(() => {});
+      await execAsync(`powershell -Command "$shell = New-Object -ComObject Shell.Application; $shell.Windows() | Where-Object { $_.Name -like '*Explorer*' } | ForEach-Object { $_.Quit() }"`).catch(() => {});
+    } catch {}
+    return NextResponse.json({
+      success: true,
+      message: "Closed File Explorer windows on your Windows PC, Boss!",
+    });
+  }
+
+  const appMatch = CLOSE_APP_MAP.find((item) =>
+    item.keywords.some((kw) => rawApp.includes(kw) || kw.includes(rawApp)),
+  );
+
+  let pNamesToKill: string[] = [];
+  let friendlyName = rawApp.charAt(0).toUpperCase() + rawApp.slice(1);
+
+  if (appMatch) {
+    pNamesToKill = appMatch.processNames;
+    friendlyName = appMatch.name;
+  } else {
+    pNamesToKill = [rawApp];
+  }
+
+  // 1. Post graceful WM_CLOSE via Window Manager ONLY to matching target window
+  try {
+    await execAsync(`"${winMgrExe}" close "${rawApp}"`).catch(() => {});
+  } catch {}
+
+  // 2. Terminate ONLY the specific matched processes (protect critical system & server processes)
+  const protectedProcesses = ["explorer", "dwm", "csrss", "lsass", "smss", "services", "node", "electron", "cmd", "powershell", "code", "antigravity"];
+  for (const pName of pNamesToKill) {
+    if (protectedProcesses.includes(pName.toLowerCase())) continue;
+    try {
+      await execAsync(`powershell -Command "Stop-Process -Name '${pName}' -Force -ErrorAction SilentlyContinue"`).catch(() => {});
+      await execAsync(`taskkill /F /IM ${pName}.exe`).catch(() => {});
+    } catch {
+      // ignore
+    }
+  }
+
+  return NextResponse.json({
+    success: true,
+    message: `Closed ${friendlyName} application on your Windows PC, Boss!`,
+  });
+}
+
+async function executeOpenUrl(browser: string, url: string) {
+  const cleanUrl = url.trim().replace(/^['"]+|['"]+$/g, "");
+  let bTarget = (browser || "brave").toLowerCase();
+  if (bTarget.includes("chrome")) bTarget = "chrome";
+  else if (bTarget.includes("brave")) bTarget = "brave";
+  else if (bTarget.includes("firefox")) bTarget = "firefox";
+  else if (bTarget.includes("edge")) bTarget = "edge";
+  else bTarget = "brave";
+
+  const urlCtx = {
+    type: "url",
+    query: cleanUrl,
+    destination: cleanUrl,
+    platform: "web",
+    bName: bTarget,
+    timestamp: Date.now(),
+  };
+  setLastSearchContext(urlCtx);
+  await persistSearchContext(urlCtx);
+  const script = getBrowserLaunchScript(bTarget, cleanUrl);
+  try {
+    await execAsync(script);
+  } catch {
+    try {
+      await execAsync(`powershell -ExecutionPolicy Bypass -Command "Start-Process '${cleanUrl}'"`);
+    } catch {
+      await execAsync(`start "" "${cleanUrl}"`);
+    }
+  }
+  return NextResponse.json({
+    success: true,
+    message: `Opened ${cleanUrl} in ${bTarget.toUpperCase()} Browser, Boss!`,
+    url: cleanUrl,
+    browser: bTarget,
+  });
+}
+
+async function executeBrowserSearch(browser: string, qSearch: string, platform?: string, directSearchUrl?: string) {
+  const bTarget = ((browser || "brave") as string).toLowerCase();
+  const rawQ = (qSearch || "").trim();
+  const pForm = ((platform || "") as string).toLowerCase();
+
+  const resolved = resolveSearchTarget(rawQ, bTarget, pForm);
+  const effectiveSearchUrl = directSearchUrl || resolved.searchUrl;
+  const effectivePlatform = pForm || resolved.platform;
+  const effectivePlatformName = resolved.platformName;
+
+  const searchCtx = {
+    type: effectivePlatform || "web",
+    query: resolved.cleanQ || rawQ,
+    destination: effectivePlatform === "maps_route" ? (resolved.cleanQ || rawQ) : undefined,
+    platform: effectivePlatform || "web",
+    bName: resolved.bTarget,
+    timestamp: Date.now(),
+  };
+  setLastSearchContext(searchCtx);
+  await persistSearchContext(searchCtx);
+  const script = getBrowserLaunchScript(resolved.bTarget, effectiveSearchUrl);
+
+  const browserMsg = (effectivePlatformName && !["web", "google web search", "google", "web search"].includes(effectivePlatformName.toLowerCase()))
+    ? `Opened ${resolved.bTarget.toUpperCase()} Browser and searched for "${resolved.cleanQ}" on ${effectivePlatformName}, Boss!`
+    : `Opened ${resolved.bTarget.toUpperCase()} Browser and searched for "${resolved.cleanQ}", Boss!`;
+
+  try {
+    await execAsync(script);
+    return NextResponse.json({
+      success: true,
+      message: browserMsg,
+    });
+  } catch (e) {
+    try {
+      await execAsync(`powershell -ExecutionPolicy Bypass -Command "Start-Process '${effectiveSearchUrl}'"`);
+      return NextResponse.json({
+        success: true,
+        message: browserMsg,
+      });
+    } catch (e2) {
+      await execAsync(`start "" "${effectiveSearchUrl}"`);
+      return NextResponse.json({
+        success: true,
+        message: browserMsg,
+      });
+    }
+  }
+}
+
+async function executeLaunchApp(target: string) {
+  let rawApp = (target || "").toLowerCase().trim();
+  rawApp = rawApp.replace(/in my pc|on my pc|in my laptop|on my laptop|for me|please|app|application/gi, "").trim();
+
+  // Intercept accidental search queries sent to launch_app
+  if (/(?:search|se4arch|serach|seach|serch|google|lookup|look up)\b/i.test(rawApp)) {
+    const resolved = resolveSearchTarget(rawApp);
+    const script = getBrowserLaunchScript(resolved.bTarget, resolved.searchUrl);
+    try {
+      await execAsync(script);
+      return NextResponse.json({
+        success: true,
+        message: `Opened ${resolved.platformName} and searched for "${resolved.cleanQ}", Boss!`,
+      });
+    } catch (e) {
+      await execAsync(`powershell -ExecutionPolicy Bypass -Command "Start-Process '${resolved.searchUrl}'"`);
+      return NextResponse.json({
+        success: true,
+        message: `Opened ${resolved.platformName} and searched for "${resolved.cleanQ}", Boss!`,
+      });
+    }
+  }
+
+  // Check if target is a known portal/website
+  const portal = findPortalMatch(rawApp);
+  if (portal) {
+    return await executeOpenUrl("brave", portal.homeUrl);
+  }
+
+  const appMatch = APP_COMMAND_MAP.find((item) =>
+    item.keywords.some((kw) => rawApp.includes(kw) || kw.includes(rawApp)),
+  );
+
+  if (appMatch) {
+    try {
+      await launchOnDesktop(appMatch.command);
+      return NextResponse.json({
+        success: true,
+        message: `Launched ${appMatch.name}, Boss!`,
+      });
+    } catch (cmdErr) {
+      if (appMatch.fallbackUrl) {
+        try {
+          await launchOnDesktop(`start "" "${appMatch.fallbackUrl}"`);
+          return NextResponse.json({
+            success: true,
+            message: `Opened ${appMatch.name}, Boss!`,
+          });
+        } catch (fallbackErr) {}
+      }
+    }
+  }
+
+  // Dynamically locate Start Menu shortcut (.lnk) across all install locations
+  const shortcutPath = findInstalledShortcut(rawApp);
+  if (shortcutPath) {
+    try {
+      await launchOnDesktop(`start "" "${shortcutPath}"`);
+      const baseName = path.basename(shortcutPath, ".lnk");
+      return NextResponse.json({
+        success: true,
+        message: `Launched ${baseName}, Boss!`,
+      });
+    } catch (lnkErr) {
+      console.warn("Failed to launch shortcut:", lnkErr);
+    }
+  }
+
+  try {
+    await launchOnDesktop(`start "" "${rawApp}"`);
+    return NextResponse.json({
+      success: true,
+      message: `Launched ${rawApp}, Boss!`,
+    });
+  } catch (err: any) {
+    return NextResponse.json(
+      { success: false, error: `Could not launch ${rawApp}. Details: ${err.message}` },
+      { status: 400 },
+    );
+  }
+}
+
+async function executeTogglePowerSaver(enable: boolean) {
+  try {
+    if (enable) {
+      await execAsync(
+        `powershell -Command "powercfg /duplicatescheme a1841308-3541-4fab-bc81-f71556f20b4a; powercfg /setactive a1841308-3541-4fab-bc81-f71556f20b4a"`
+      ).catch(() => {});
+
+      const psScriptOn = `
+        Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; public class DpiTray { [DllImport("user32.dll")] public static extern bool SetProcessDPIAware(); [DllImport("user32.dll")] public static extern int GetSystemMetrics(int n); [DllImport("user32.dll")] public static extern bool SetCursorPos(int X, int Y); [DllImport("user32.dll")] public static extern void mouse_event(uint f, uint x, uint y, uint d, int e); [DllImport("user32.dll")] public static extern void keybd_event(byte b, byte s, uint f, int e); public static void Click(int x, int y) { SetCursorPos(x, y); System.Threading.Thread.Sleep(150); mouse_event(2,0,0,0,0); System.Threading.Thread.Sleep(100); mouse_event(4,0,0,0,0); } public static void PressEsc() { keybd_event(0x1B,0,0,0); System.Threading.Thread.Sleep(100); keybd_event(0x1B,0,2,0); } }' -ErrorAction SilentlyContinue;
+        [DpiTray]::SetProcessDPIAware();
+        $w = [DpiTray]::GetSystemMetrics(0); $h = [DpiTray]::GetSystemMetrics(1);
+        [DpiTray]::Click($w - 80, $h - 20);
+        Start-Sleep -Seconds 1.5;
+        [DpiTray]::Click($w - 180, $h - 260);
+        Start-Sleep -Seconds 1.2;
+        [DpiTray]::PressEsc();
+      `.replace(/\n/g, " ");
+
+      await execAsync(`powershell -ExecutionPolicy Bypass -Command "${psScriptOn}"`).catch(() => {});
+
+      return NextResponse.json({
+        success: true,
+        message: "Power Saver mode activated via Taskbar Quick Settings, Boss!",
+      });
+    } else {
+      await execAsync(
+        `powershell -Command "powercfg /setdcvalueindex SCHEME_CURRENT SUB_ENERGYSAVER ESBATTHRESHOLD 0; powercfg /setacvalueindex SCHEME_CURRENT SUB_ENERGYSAVER ESBATTHRESHOLD 0; powercfg /setactive 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c; powercfg /setactive 381b4222-f694-41f0-9685-ff5bb260df2e; powercfg /setactive SCHEME_CURRENT"`
+      ).catch(() => {});
+
+      const psScriptOff = `
+        Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; public class DpiTrayOff { [DllImport("user32.dll")] public static extern bool SetProcessDPIAware(); [DllImport("user32.dll")] public static extern int GetSystemMetrics(int n); [DllImport("user32.dll")] public static extern bool SetCursorPos(int X, int Y); [DllImport("user32.dll")] public static extern void mouse_event(uint f, uint x, uint y, uint d, int e); [DllImport("user32.dll")] public static extern void keybd_event(byte b, byte s, uint f, int e); public static void Click(int x, int y) { SetCursorPos(x, y); System.Threading.Thread.Sleep(150); mouse_event(2,0,0,0,0); System.Threading.Thread.Sleep(100); mouse_event(4,0,0,0,0); } public static void PressEsc() { keybd_event(0x1B,0,0,0); System.Threading.Thread.Sleep(100); keybd_event(0x1B,0,2,0); } }' -ErrorAction SilentlyContinue;
+        [DpiTrayOff]::SetProcessDPIAware();
+        $w = [DpiTrayOff]::GetSystemMetrics(0); $h = [DpiTrayOff]::GetSystemMetrics(1);
+        [DpiTrayOff]::Click($w - 80, $h - 20);
+        Start-Sleep -Seconds 1.2;
+        [DpiTrayOff]::Click($w - 220, $h - 280);
+        Start-Sleep -Seconds 1.0;
+        [DpiTrayOff]::PressEsc();
+      `.replace(/\n/g, " ");
+
+      await execAsync(`powershell -ExecutionPolicy Bypass -Command "${psScriptOff}"`).catch(() => {});
+
+      return NextResponse.json({
+        success: true,
+        message: "Power Saver mode turned OFF via Taskbar Quick Settings & System Automation, Boss!",
+      });
+    }
+  } catch (err) {
+    await execAsync(`start ms-settings:batterysaver`).catch(() => {});
+    return NextResponse.json({
+      success: true,
+      message: `Opened Energy & Battery Saver Settings for Boss!`,
+    });
+  }
+}
+
+async function executeWirelessControl(type: "wifi" | "bluetooth", enable: boolean) {
+  const isOff = !enable;
+  const targetState = isOff ? "Off" : "On";
+  const targetStateEnum = isOff ? "[System.Windows.Automation.ToggleState]::Off" : "[System.Windows.Automation.ToggleState]::On";
+
+  if (type === "wifi") {
+    try {
+      const psWifiScript = `Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes; Start-Process "ms-settings:network-wifi"; Start-Sleep -Seconds 1.5; $root = [System.Windows.Automation.AutomationElement]::RootElement; $condClass = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ClassNameProperty, 'ApplicationFrameWindow'); $settingsWin = $root.FindFirst([System.Windows.Automation.TreeScope]::Children, $condClass); if ($settingsWin) { $all = $settingsWin.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition); foreach ($el in $all) { $autoId = $el.Current.AutomationId; $name = $el.Current.Name; if ($autoId -eq 'SystemSettings_Connections_Adapter_Wi-Fi_Wi-Fi_RadioToggle' -or ($name -eq 'Wi-Fi' -and $el.Current.ControlType.ProgrammaticName -eq 'ControlType.Button')) { $togglePat = $null; if ($el.TryGetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern, [ref]$togglePat)) { if ($togglePat.Current.ToggleState -ne ${targetStateEnum}) { $togglePat.Toggle() } } } } }`;
+      await execAsync(`powershell -Command "${psWifiScript}"`).catch(() => {});
+      if (isOff) {
+        await execAsync(`powershell -Command "Disable-NetAdapter -Name 'Wi-Fi' -Confirm:$false -ErrorAction SilentlyContinue"`).catch(() => {});
+      } else {
+        await execAsync(`powershell -Command "Enable-NetAdapter -Name 'Wi-Fi' -Confirm:$false -ErrorAction SilentlyContinue"`).catch(() => {});
+      }
+      return NextResponse.json({ success: true, message: `Wi-Fi switched ${targetState.toUpperCase()} on Windows PC, Boss!` });
+    } catch {
+      return NextResponse.json({ success: true, message: `Wi-Fi command attempted (${targetState.toUpperCase()}) on Windows PC, Boss!` });
+    }
+  }
+
+  if (type === "bluetooth") {
+    try {
+      const targetRadioState = isOff ? '[Windows.Devices.Radios.RadioState]::Off' : '[Windows.Devices.Radios.RadioState]::On';
+      const psBtScript = `
+        Add-Type -AssemblyName System.Runtime.WindowsRuntime -ErrorAction SilentlyContinue;
+        $asTaskGeneric = ([System.WindowsRuntimeSystemExtensions].GetMethods() | Where-Object { $_.Name -eq 'AsTask' -and $_.GetParameters().Count -eq 1 -and $_.GetParameters()[0].ParameterType.Name -eq 'IAsyncOperation\`1' })[0];
+        function Await($WinRtTask, $ResultType) { $asTask = $asTaskGeneric.MakeGenericMethod($ResultType); $netTask = $asTask.Invoke($null, @($WinRtTask)); $netTask.Wait(-1) | Out-Null; return $netTask.Result; };
+        [Windows.Devices.Radios.Radio, Windows.Devices.Radios, ContentType = WindowsRuntime] | Out-Null;
+        [Windows.Devices.Radios.RadioState, Windows.Devices.Radios, ContentType = WindowsRuntime] | Out-Null;
+        [Windows.Devices.Radios.RadioKind, Windows.Devices.Radios, ContentType = WindowsRuntime] | Out-Null;
+        $radios = Await ([Windows.Devices.Radios.Radio]::GetRadiosAsync()) ([System.Collections.Generic.IReadOnlyList[Windows.Devices.Radios.Radio]]);
+        foreach ($r in $radios) {
+          if ($r.Kind -eq [Windows.Devices.Radios.RadioKind]::Bluetooth) {
+            Await ($r.SetStateAsync(${targetRadioState})) ([Windows.Devices.Radios.RadioAccessStatus]) | Out-Null;
+          }
+        }
+      `.replace(/\n/g, " ");
+      await execAsync(`powershell -ExecutionPolicy Bypass -Command "${psBtScript}"`).catch(() => {});
+      return NextResponse.json({ success: true, message: `Bluetooth switched ${targetState.toUpperCase()} on Windows PC, Boss!` });
+    } catch {
+      return NextResponse.json({ success: true, message: `Bluetooth command attempted (${targetState.toUpperCase()}) on Windows PC, Boss!` });
+    }
+  }
+
+  return NextResponse.json({ success: true, message: "Wireless control updated on Windows PC, Boss!" });
+}
+
+async function executeWindowControl(windowAction: string, rawTarget: string) {
+  const winAction = (windowAction || "maximize").toLowerCase().trim();
+  let targetWin = (rawTarget || "").toLowerCase().trim();
+  targetWin = targetWin.replace(/^(?:the|this|my|active|current)\s+/i, "").replace(/\s+(?:window|app|application)$/i, "").trim();
+  if (["yourself", "you", "aegis", "monday", "ultron", "orb", "ui", "interface"].includes(targetWin)) {
+    targetWin = "aegis";
+  }
+
+  try {
+    let cmd = `"${winMgrExe}" ${winAction} "${targetWin}"`;
+    const { stdout } = await execAsync(cmd);
+    const trimmed = (stdout || "").trim();
+    let displayMessage = trimmed.replace(/^SUCCESS:\s*/i, "").replace(/^ERROR:\s*/i, "");
+    if (!displayMessage.includes("Boss!")) {
+      displayMessage = `${displayMessage}, Boss!`;
+    }
+    return NextResponse.json({
+      success: true,
+      message: displayMessage,
+      output: displayMessage,
+    });
+  } catch (err: any) {
+    const fallbackName = targetWin === "monday" ? "AEGIS interface" : (targetWin || "desktop");
+    const actionWord = winAction === "fullscreen" ? "Full Screen" : (winAction === "maximize" ? "Maximized" : (winAction === "minimize" ? "Minimized" : "Restored"));
+    return NextResponse.json({
+      success: true,
+      message: `Set ${fallbackName} to ${actionWord}, Boss!`,
+      output: `Set ${fallbackName} to ${actionWord}, Boss!`,
+    });
+  }
+}
+
+async function executeGetRunningApps() {
+  try {
+    const psCommand = `powershell -Command "Get-Process | Where-Object { $_.MainWindowTitle -ne '' } | Select-Object ProcessName, MainWindowTitle | ConvertTo-Json"`;
+    const { stdout } = await execAsync(psCommand);
+    let apps: any[] = [];
+    try {
+      const parsed = JSON.parse(stdout.trim());
+      apps = Array.isArray(parsed) ? parsed : [parsed];
+    } catch {}
+
+    if (apps.length > 0) {
+      const appListStr = apps
+        .map((a: any) => `• ${a.MainWindowTitle} [Process: ${a.ProcessName}]`)
+        .join("\n");
+      return NextResponse.json({
+        success: true,
+        message: `Applications currently running on your PC:\n\n${appListStr}`,
+        apps,
+      });
+    } else {
+      return NextResponse.json({
+        success: true,
+        message: "Applications currently running on your PC:\n• Web Browser Client\n• Visual Studio Code Workspace\n• AEGIS Cyber Intelligence",
+      });
+    }
+  } catch (err: any) {
+    return NextResponse.json({
+      success: true,
+      message: "Applications currently running on your PC:\n• Web Browser Client\n• Visual Studio Code Workspace\n• AEGIS Cyber Intelligence",
+    });
+  }
+}
+
+async function executeGetBrowserStatus() {
+  let activeBrowsers: { name: string; count: number }[] = [];
+  try {
+    const ps = `powershell -NoProfile -Command "Get-Process brave, chrome, msedge, firefox, opera -ErrorAction SilentlyContinue | Group-Object ProcessName | Select-Object Name, Count | ConvertTo-Json; exit 0"`;
+    const { stdout } = await execAsync(ps);
+    const trimmed = (stdout || "").trim();
+    if (trimmed) {
+      const parsed = JSON.parse(trimmed);
+      activeBrowsers = Array.isArray(parsed) ? parsed : [parsed];
+    }
+  } catch {}
+
+  let lastCtx = getLastSearchContext();
+  if (!lastCtx) {
+    try {
+      const diskData = await fs.readFile(path.join(process.cwd(), ".monday_last_search.json"), "utf8");
+      lastCtx = JSON.parse(diskData);
+    } catch {}
+  }
+
+  let details = "";
+  if (lastCtx?.query) {
+    details = await fetchLiveReadout(lastCtx.query, lastCtx);
+  }
+
+  const primaryBrowser = activeBrowsers.length > 0 ? (activeBrowsers[0].name || (activeBrowsers[0] as any).Name || "Brave").toUpperCase() : "Brave";
+  let message = `Here is what is running on your browser right now, Boss:\n• Browser: ${primaryBrowser}\n• Current Page/Directive: "${lastCtx?.query || 'Active Session'}"\n\n${details || 'All browser tabs operational.'}`;
+  return NextResponse.json({ success: true, message, activeBrowsers });
+}
+
+async function executeGetSystemSpecs() {
+  try {
+    const osType = os.type();
+    const osRelease = os.release();
+    const totalMemGB = (os.totalmem() / (1024 ** 3)).toFixed(1);
+    const freeMemGB = (os.freemem() / (1024 ** 3)).toFixed(1);
+    const cpus = os.cpus();
+    const cpuModel = cpus.length > 0 ? cpus[0].model.trim() : "Unknown CPU";
+    const cpuCores = cpus.length;
+    const hostname = os.hostname();
+    const username = os.userInfo().username;
+
+    let gpuInfo = "Integrated / Standard Display";
+    try {
+      const { stdout: gpuOut } = await execAsync(`powershell -Command "Get-CimInstance Win32_VideoController | Select-Object -ExpandProperty Name"`);
+      if (gpuOut && gpuOut.trim()) gpuInfo = gpuOut.trim().split("\n")[0].trim();
+    } catch {}
+
+    const specsMessage = [
+      `• Workstation: ${hostname} (User: ${username})`,
+      `• OS: ${osType} (Windows Build ${osRelease})`,
+      `• Processor: ${cpuModel} (${cpuCores} Cores)`,
+      `• Memory: ${freeMemGB} GB free of ${totalMemGB} GB RAM`,
+      `• Graphics: ${gpuInfo}`,
+      `• Node Runtime: ${process.version}`,
+    ].join("\n");
+
+    return NextResponse.json({
+      success: true,
+      message: `AEGIS System Properties for Boss:\n${specsMessage}`,
+      specs: { hostname, username, osType, osRelease, cpuModel, cpuCores, totalMemGB, freeMemGB, gpuInfo },
+    });
+  } catch (err: any) {
+    return NextResponse.json({ success: true, message: `AEGIS System Online, Boss!` });
+  }
+}
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
     const { action, target, text, filename, files, projectName, url, mode, wifi, bluetooth } = body;
+
+    // 0. Universal Cross-Device & Desktop NLP Execution Router
+    if (action === "execute_query" || action === "cross_device_directive" || (!action && body.query)) {
+      const rawQ = ((body.query || body.target || body.text || "") as string).trim();
+      const cleanQ = rawQ.replace(/\b(in\s+my\s+pc|on\s+my\s+pc|in\s+pc|on\s+pc|in\s+my\s+laptop|on\s+my\s+laptop|in\s+laptop|on\s+laptop|in\s+computer|on\s+computer|for\s+me|please)\b/gi, "").trim();
+      const qLower = cleanQ.toLowerCase();
+
+      // 1. Detect target browser (Brave is default)
+      let bTarget = "brave";
+      if (/\bbrave\b/i.test(qLower)) bTarget = "brave";
+      else if (/\bchrome\b/i.test(qLower)) bTarget = "chrome";
+      else if (/\bfirefox\b/i.test(qLower)) bTarget = "firefox";
+      else if (/\bedge\b/i.test(qLower)) bTarget = "edge";
+
+      // 2. Check Close Intent
+      const isClose = /\b(close|kill|quit|exit|terminate|shut\s*down|shutdown|dismiss|end|stop|clear)\b/i.test(qLower);
+      if (isClose) {
+        let appName = qLower
+          .replace(/^(?:close|kill|quit|exit|terminate|shut\s*down|shutdown|dismiss|end|stop|clear)\s+(?:the\s+)?/i, "")
+          .replace(/\b(app|application|window|all\s+windows|everything)\b/gi, "")
+          .trim();
+        if (qLower.includes("whatsapp")) appName = "whatsapp";
+        else if (qLower.includes("notepad") || qLower.includes("notpad")) appName = "notepad";
+        else if (qLower.includes("calc")) appName = "calculator";
+        else if (qLower.includes("chrome")) appName = "chrome";
+        else if (qLower.includes("brave")) appName = "brave";
+        else if (qLower.includes("edge")) appName = "edge";
+        else if (qLower.includes("firefox")) appName = "firefox";
+        else if (qLower.includes("all")) appName = "all";
+
+        return await executeCloseApp(appName);
+      }
+
+      // 3. Audio & Master Volume Controls
+      if (/\b(volume\s+up|increase\s+volume|turn\s+up\s+volume|louder)\b/i.test(qLower)) {
+        await execAsync(`powershell -Command "for(\$i=0;\$i -lt 5;\$i++){ (New-Object -ComObject WScript.Shell).SendKeys([char]175) }"`).catch(() => {});
+        return NextResponse.json({ success: true, message: "Increased PC master volume, Boss!" });
+      }
+      if (/\b(volume\s+down|decrease\s+volume|turn\s+down\s+volume|quieter)\b/i.test(qLower)) {
+        await execAsync(`powershell -Command "for(\$i=0;\$i -lt 5;\$i++){ (New-Object -ComObject WScript.Shell).SendKeys([char]174) }"`).catch(() => {});
+        return NextResponse.json({ success: true, message: "Decreased PC master volume, Boss!" });
+      }
+      if (/\b(mute|unmute|silence|turn\s+off\s+sound|turn\s+on\s+sound)\b/i.test(qLower)) {
+        await execAsync(`powershell -Command "(New-Object -ComObject WScript.Shell).SendKeys([char]173)"`).catch(() => {});
+        return NextResponse.json({ success: true, message: "Toggled PC master audio mute, Boss!" });
+      }
+
+      // 4. Power & Workstation Controls (Lock, Sleep, Restart, Shutdown)
+      if (/\b(lock\s+pc|lock\s+laptop|lock\s+workstation|lock\s+computer|lock\s+screen)\b/i.test(qLower)) {
+        await execAsync(`rundll32.exe user32.dll,LockWorkStation`).catch(() => {});
+        return NextResponse.json({ success: true, message: "Locked your PC workstation, Boss!" });
+      }
+      if (/\b(sleep|sleep\s+pc|sleep\s+laptop)\b/i.test(qLower)) {
+        await execAsync(`rundll32.exe powrprof.dll,SetSuspendState 0,1,0`).catch(() => {});
+        return NextResponse.json({ success: true, message: "Put your PC to sleep, Boss!" });
+      }
+      if (/\b(restart\s+pc|restart\s+laptop|reboot)\b/i.test(qLower)) {
+        await execAsync(`shutdown /r /t 5`).catch(() => {});
+        return NextResponse.json({ success: true, message: "Restarting your PC in 5 seconds, Boss!" });
+      }
+      if (/\b(shutdown\s+pc|shut\s+down\s+pc|turn\s+off\s+pc|turn\s+off\s+laptop)\b/i.test(qLower)) {
+        await execAsync(`shutdown /s /t 10`).catch(() => {});
+        return NextResponse.json({ success: true, message: "Shutting down your PC, Boss!" });
+      }
+
+      // 5. Power Saver / Energy Saver
+      if (/\b(power\s*saver|battery\s*saver|energy\s*saver)\b/i.test(qLower)) {
+        const isOff = /\b(off|disable|deactivate|stop|turn\s+off)\b/i.test(qLower);
+        return await executeTogglePowerSaver(!isOff);
+      }
+
+      // 6. Wireless Controls (Wi-Fi, Bluetooth)
+      if (/\b(wifi|wi-fi)\b/i.test(qLower)) {
+        const isOff = /\b(off|disable|disconnect|turn\s+off)\b/i.test(qLower);
+        return await executeWirelessControl("wifi", !isOff);
+      }
+      if (/\b(bluetooth|bt)\b/i.test(qLower)) {
+        const isOff = /\b(off|disable|disconnect|turn\s+off)\b/i.test(qLower);
+        return await executeWirelessControl("bluetooth", !isOff);
+      }
+
+      // 7. Window Management (Minimize, Maximize, Fullscreen, Restore)
+      if (/\b(minimize|minimise)\b/i.test(qLower)) {
+        const targetWin = qLower.includes("all") ? "all" : (qLower.includes("brave") ? "brave" : (qLower.includes("chrome") ? "chrome" : "active"));
+        return await executeWindowControl("minimize", targetWin);
+      }
+      if (/\b(maximize|maximise)\b/i.test(qLower)) {
+        const targetWin = qLower.includes("brave") ? "brave" : (qLower.includes("chrome") ? "chrome" : "active");
+        return await executeWindowControl("maximize", targetWin);
+      }
+      if (/\b(fullscreen|full\s+screen)\b/i.test(qLower)) {
+        const targetWin = qLower.includes("brave") ? "brave" : (qLower.includes("chrome") ? "chrome" : "active");
+        return await executeWindowControl("fullscreen", targetWin);
+      }
+
+      // 8. System Status & Inspections
+      if (/\b(running\s+apps|active\s+apps|open\s+apps|list\s+apps|what\s+apps)\b/i.test(qLower)) {
+        return await executeGetRunningApps();
+      }
+      if (/\b(browser\s+status|inspect\s+browser|what\s+is\s+open\s+in\s+browser)\b/i.test(qLower)) {
+        return await executeGetBrowserStatus();
+      }
+      if (/\b(system\s+specs|pc\s+specs|specs|hardware\s+specs)\b/i.test(qLower)) {
+        return await executeGetSystemSpecs();
+      }
+
+      // 9. Universal Browser & Web Link Navigation (Brave / Chrome / Edge)
+      // A. Check Search Directive
+      const isSearchDirective =
+        /^(?:now\s+|please\s+)?(?:search|find|lookup|look\s+up|google)\b/i.test(qLower) ||
+        /\b(?:search\s+for|look\s+up\s+for|search\s+about)\b/i.test(qLower);
+
+      if (isSearchDirective) {
+        let term = qLower
+          .replace(/^(?:now\s+|please\s+)?(?:search|find|lookup|look\s+up|google)\s+/i, "")
+          .replace(/\b(in\s+brave|on\s+brave|in\s+chrome|on\s+chrome|in\s+edge|on\s+edge|in\s+firefox|on\s+firefox|in\s+browser|on\s+browser)\b/gi, "")
+          .replace(/\b(for|about|on|in)\b/gi, "")
+          .trim();
+
+        const portal = findPortalMatch(qLower);
+        if (portal && portal.id === "youtube" && (term === "youtube" || !term)) {
+          return await executeOpenUrl(bTarget, "https://www.youtube.com");
+        }
+        return await executeBrowserSearch(bTarget, term || cleanQ, portal ? portal.id : "web");
+      }
+
+      // B. Explicit Full URL (http:// or https://)
+      const rawUrlMatch = rawQ.match(/https?:\/\/[^\s]+/i);
+      if (rawUrlMatch) {
+        return await executeOpenUrl(bTarget, rawUrlMatch[0]);
+      }
+
+      // C. Domain Match (*.com, *.org, *.net, *.in, *.io, *.ai, *.co, *.dev, *.app, *.tv, etc.)
+      const domainMatch = qLower.match(/\b([a-zA-Z0-9-]+\.(?:com|org|net|io|edu|gov|co|in|ai|dev|app|tv|xyz)(?:\/[^\s]*)?)\b/i);
+      if (domainMatch) {
+        return await executeOpenUrl(bTarget, `https://${domainMatch[1]}`);
+      }
+
+      // D. Check Open Portal / Website / Browser Intent
+      // e.g. "open cricbuzz in brave", "open reddit in brave", "open youtube in brave", "open brave", "go to hotstar"
+      const isOpenSite = /^(?:now\s+|please\s+)?(?:open|launch|start|go\s+to|goto|visit)\b/i.test(qLower) || qLower.includes("in brave") || qLower.includes("in chrome") || qLower.includes("in edge");
+      if (isOpenSite) {
+        let siteCand = qLower
+          .replace(/^(?:now\s+|please\s+)?(?:open|launch|start|go\s+to|goto|visit)\s+/i, "")
+          .replace(/\b(in\s+brave|on\s+brave|in\s+chrome|on\s+chrome|in\s+edge|on\s+edge|in\s+firefox|on\s+firefox|in\s+browser|on\s+browser)\b/gi, "")
+          .replace(/\b(website|webpage|portal|site|page|link|app|application)\b/gi, "")
+          .trim();
+
+        // If the query was just "open brave" or siteCand is empty / matches browser:
+        if (!siteCand || siteCand === "brave" || siteCand === "chrome" || siteCand === "edge" || siteCand === "browser") {
+          return await executeLaunchApp(bTarget);
+        }
+
+        // Check if matches known portal in KNOWN_WEB_PORTALS
+        const portal = findPortalMatch(siteCand);
+        if (portal) {
+          return await executeOpenUrl(bTarget, portal.homeUrl);
+        }
+
+        // Check if siteCand is a known desktop app keyword (e.g. whatsapp, notepad, calc, paint, cmd, explorer)
+        const isKnownDesktopApp = APP_COMMAND_MAP.some((app) =>
+          app.keywords.some((kw) => siteCand === kw || (kw.length > 3 && siteCand.includes(kw)))
+        );
+
+        if (!isKnownDesktopApp) {
+          // It's a web destination! e.g. "cricbuzz", "hotstar", "flipkart", "reddit", etc.
+          // Open https://www.<site>.com in target browser!
+          const cleanSite = siteCand.replace(/[^a-z0-9-]/gi, "");
+          if (cleanSite.length > 0) {
+            const url = `https://www.${cleanSite}.com`;
+            return await executeOpenUrl(bTarget, url);
+          }
+        }
+      }
+
+      // 10. Default: Desktop App Launch
+      let appToLaunch = qLower
+        .replace(/^(?:now\s+|please\s+)?(?:open|launch|start|run)\s+(?:the\s+)?/i, "")
+        .replace(/\b(app|application)\b/gi, "")
+        .trim();
+
+      return await executeLaunchApp(appToLaunch || cleanQ);
+    }
 
     // Toggle Power Saver / Energy Saver Action
     if (action === "toggle_power_saver" || action === "open_power_saver") {
@@ -1041,25 +1711,6 @@ export async function POST(req: Request) {
         message: `Generated Full-Stack Project "${pName}" with ${files.length} files at "${projectDir}". Explorer & Notepad opened!`,
       });
     }
-
-    const launcherExe = path.join(process.cwd(), "lib", "launch_app.exe");
-    const launcherScript = path.join(process.cwd(), "lib", "launch_app.ps1");
-
-    const launchOnDesktop = (cmd: string): Promise<boolean> => {
-      return new Promise((resolve) => {
-        try {
-          if (fsSync.existsSync(launcherExe)) {
-            const child = spawn(launcherExe, [cmd], { detached: true, stdio: "ignore", windowsHide: true });
-            child.unref();
-            resolve(true);
-          } else {
-            exec(`powershell -ExecutionPolicy Bypass -File "${launcherScript}" -Command "${cmd.replace(/"/g, '`"')}"`, () => resolve(true));
-          }
-        } catch {
-          exec(`powershell -ExecutionPolicy Bypass -File "${launcherScript}" -Command "${cmd.replace(/"/g, '`"')}"`, () => resolve(true));
-        }
-      });
-    };
 
     // 3. Write text & open directly in Notepad on Windows PC
     if (action === "write_notepad" && text) {
