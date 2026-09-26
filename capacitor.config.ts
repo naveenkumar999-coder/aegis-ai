@@ -5,7 +5,7 @@ const config: CapacitorConfig = {
   appName: 'AEGIS AI',
   webDir: 'public',
   server: {
-    url: 'http://localhost:3000',
+    url: 'https://aegis-ai-git-main-naveenkumar999-coders-projects.vercel.app',
     cleartext: true
   }
 };

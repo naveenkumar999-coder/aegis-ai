@@ -22,6 +22,9 @@ import android.content.SharedPreferences;
 import android.widget.EditText;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageManager;
+import java.util.List;
 import com.getcapacitor.BridgeActivity;
 import java.util.Locale;
 
@@ -57,20 +60,22 @@ public class MainActivity extends BridgeActivity {
         new Thread(() -> {
             SharedPreferences prefs = getSharedPreferences("monday_settings", MODE_PRIVATE);
             String savedIp = prefs.getString("pc_ip", "10.250.173.50");
+            String cloudUrl = "https://aegis-ai-git-main-naveenkumar999-coders-projects.vercel.app";
 
             String[] candidates = new String[]{
-                "http://localhost:3000",
+                cloudUrl,
                 "http://" + savedIp + ":3000",
                 "http://192.168.43.10:3000",
-                "http://10.250.173.50:3000"
+                "http://10.250.173.50:3000",
+                "http://localhost:3000"
             };
 
             String workingUrl = null;
             for (String candidate : candidates) {
                 try {
                     HttpURLConnection conn = (HttpURLConnection) new URL(candidate).openConnection();
-                    conn.setConnectTimeout(1200);
-                    conn.setReadTimeout(1200);
+                    conn.setConnectTimeout(1500);
+                    conn.setReadTimeout(1500);
                     conn.setRequestMethod("GET");
                     int code = conn.getResponseCode();
                     if (code == 200) {
@@ -85,7 +90,7 @@ public class MainActivity extends BridgeActivity {
                 runOnUiThread(() -> {
                     if (bridge != null && bridge.getWebView() != null) {
                         String currentUrl = bridge.getWebView().getUrl();
-                        if (currentUrl == null || currentUrl.contains("chrome-error") || currentUrl.startsWith("file:") || (!currentUrl.contains(":3000"))) {
+                        if (currentUrl == null || currentUrl.contains("chrome-error") || currentUrl.startsWith("file:")) {
                             bridge.getWebView().loadUrl(urlToLoad);
                         }
                     }
@@ -326,6 +331,11 @@ public class MainActivity extends BridgeActivity {
                     try {
                         intent = MainActivity.this.getPackageManager().getLaunchIntentForPackage("com.whatsapp");
                     } catch (Exception ignored) {}
+                    if (intent == null) {
+                        try {
+                            intent = MainActivity.this.getPackageManager().getLaunchIntentForPackage("com.whatsapp.w4b");
+                        } catch (Exception ignored) {}
+                    }
                     if (intent == null) intent = new Intent(Intent.ACTION_VIEW, Uri.parse("whatsapp://"));
                 } else if (name.contains("camera")) {
                     intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
@@ -362,6 +372,18 @@ public class MainActivity extends BridgeActivity {
                         intent = MainActivity.this.getPackageManager().getLaunchIntentForPackage("com.google.android.apps.photos");
                     } catch (Exception ignored) {}
                     if (intent == null) intent = new Intent(Intent.ACTION_VIEW, Uri.parse("content://media/external/images/media"));
+                } else if (name.contains("gmail") || name.contains("mail")) {
+                    try {
+                        intent = MainActivity.this.getPackageManager().getLaunchIntentForPackage("com.google.android.gm");
+                    } catch (Exception ignored) {}
+                } else if (name.contains("telegram")) {
+                    try {
+                        intent = MainActivity.this.getPackageManager().getLaunchIntentForPackage("org.telegram.messenger");
+                    } catch (Exception ignored) {}
+                } else if (name.contains("play store") || name.contains("playstore") || name.contains("store")) {
+                    try {
+                        intent = MainActivity.this.getPackageManager().getLaunchIntentForPackage("com.android.vending");
+                    } catch (Exception ignored) {}
                 } else if (name.contains("phone") || name.contains("dialer") || name.contains("call")) {
                     intent = new Intent(Intent.ACTION_DIAL);
                 } else if (name.contains("wifi")) {
@@ -374,6 +396,21 @@ public class MainActivity extends BridgeActivity {
                     intent = new Intent(Settings.ACTION_BATTERY_SAVER_SETTINGS);
                 } else if (name.contains("settings")) {
                     intent = new Intent(Settings.ACTION_SETTINGS);
+                }
+
+                // Dynamic package lookup: check if any installed app matches target name
+                if (intent == null) {
+                    try {
+                        PackageManager pm = MainActivity.this.getPackageManager();
+                        List<ApplicationInfo> packages = pm.getInstalledApplications(PackageManager.GET_META_DATA);
+                        for (ApplicationInfo packageInfo : packages) {
+                            String label = pm.getApplicationLabel(packageInfo).toString().toLowerCase();
+                            if (label.equals(name) || label.contains(name) || packageInfo.packageName.toLowerCase().contains(name)) {
+                                intent = pm.getLaunchIntentForPackage(packageInfo.packageName);
+                                if (intent != null) break;
+                            }
+                        }
+                    } catch (Exception ignored) {}
                 }
 
 

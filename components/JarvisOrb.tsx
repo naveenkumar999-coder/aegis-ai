@@ -62,7 +62,17 @@ export default function JarvisOrb() {
   const dragOffsetRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
   // Device Type State for Cross-Device Command Bridge
-  const [deviceType, setDeviceType] = useState<"pc" | "mobile">("pc");
+  const [deviceType, setDeviceType] = useState<"pc" | "mobile">(() => {
+    if (typeof window !== "undefined") {
+      const isMobileUA =
+        /android|iphone|ipad|ipod|mobile/i.test(navigator.userAgent) ||
+        typeof (window as any).AndroidAppLauncher !== "undefined" ||
+        typeof (window as any).AndroidFlashlight !== "undefined" ||
+        window.innerWidth <= 600;
+      return isMobileUA ? "mobile" : "pc";
+    }
+    return "pc";
+  });
 
   // Settings, Theme & Voice Mode State
   const [showSettings, setShowSettings] = useState<boolean>(false);
@@ -146,7 +156,11 @@ export default function JarvisOrb() {
         localStorage.setItem("monday_use_core_audio", "false");
       }
 
-      const isMobileUA = /android|iphone|ipad|ipod|mobile/i.test(navigator.userAgent);
+      const isMobileUA =
+        /android|iphone|ipad|ipod|mobile/i.test(navigator.userAgent) ||
+        typeof (window as any).AndroidAppLauncher !== "undefined" ||
+        typeof (window as any).AndroidFlashlight !== "undefined" ||
+        window.innerWidth <= 600;
       setDeviceType(isMobileUA ? "mobile" : "pc");
 
       const params = new URLSearchParams(window.location.search);

@@ -211,6 +211,15 @@ export function launchMobileIntent(target: string): { success: boolean; message:
   } else if (t.includes("phone") || t.includes("dialer") || t.includes("call")) {
     targetName = "Phone Dialer";
     intentUrl = "tel:";
+  } else if (t.includes("gmail") || t.includes("mail")) {
+    targetName = "Gmail";
+    intentUrl = "googlegmail://";
+  } else if (t.includes("telegram")) {
+    targetName = "Telegram";
+    intentUrl = "tg://";
+  } else if (t.includes("play store") || t.includes("playstore") || t.includes("store")) {
+    targetName = "Google Play Store";
+    intentUrl = "market://";
   }
 
   if (intentUrl) {

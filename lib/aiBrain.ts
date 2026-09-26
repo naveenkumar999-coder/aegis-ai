@@ -240,7 +240,7 @@ export class AiBrain {
     if (hasWhatsApp || (phoneDigits && phoneDigits.length >= 8)) {
       // Check if query is strictly launching/opening whatsapp application without contact or message
       const isPureOpen =
-        /^(?:now\s+|please\s+)?(?:open|launch|start|run)?\s*(?:the\s+)?(?:whatsapp|whats\s+app|watsapp|wasap)(?:\s+(?:app|application|in\s+my\s+pc|on\s+my\s+pc|in\s+pc|on\s+pc))?$/i.test(q);
+        /^(?:now\s+|please\s+)?(?:open|launch|start|run)?\s*(?:the\s+)?(?:whatsapp|whats\s+app|watsapp|wasap)(?:\s+(?:app|application|in\s+my\s+pc|on\s+my\s+pc|in\s+pc|on\s+pc|in\s+my\s+mobile|on\s+my\s+mobile|in\s+mobile|on\s+mobile|in\s+phone|on\s+phone|in\s+android|on\s+android|mobile|phone|android|pc|laptop))?$/i.test(q);
       if (isPureOpen && !phoneDigits) {
         return {
           intent: "LAUNCH_APP" as const,
@@ -886,6 +886,17 @@ export class AiBrain {
   public static async executeTool(query: string, currentDevice: "pc" | "mobile" = "pc"): Promise<ToolResult | null> {
     const q = query.toLowerCase().trim();
 
+    // Determine current runtime device robustly
+    let detectedCurrentDevice: "pc" | "mobile" = currentDevice;
+    if (typeof window !== "undefined") {
+      const isActuallyMobile =
+        /android|iphone|ipad|ipod|mobile/i.test(navigator.userAgent) ||
+        typeof (window as any).AndroidAppLauncher !== "undefined" ||
+        typeof (window as any).AndroidFlashlight !== "undefined" ||
+        window.innerWidth <= 600;
+      detectedCurrentDevice = isActuallyMobile ? "mobile" : "pc";
+    }
+
     // Autonomous Self-Reflection & Reinforcement Learning Loop
     const reflection = learningBrain.reflectAndOptimize(query);
     console.log(reflection.thoughtSummary);
@@ -894,21 +905,24 @@ export class AiBrain {
     let targetDevice: "pc" | "mobile" | null = null;
     let cleanQuery = query;
 
-    if (/\b(on pc|on laptop|on my pc|on my laptop|on computer|on my computer)\b/i.test(q)) {
+    const pcTargetRegex = /\b(?:(?:on|in|to|for|at)\s+(?:the\s+|my\s+)?(?:pc|laptop|computer)|(?:pc|laptop|computer)\s*$)\b/i;
+    const mobileTargetRegex = /\b(?:(?:on|in|to|for|at)\s+(?:the\s+|my\s+)?(?:mobile|phone|android)|(?:mobile|phone|android)\s*$)\b/i;
+
+    if (pcTargetRegex.test(q)) {
       targetDevice = "pc";
-      cleanQuery = query.replace(/\b(on pc|on laptop|on my pc|on my laptop|on computer|on my computer)\b/gi, "").trim();
-    } else if (/\b(on mobile|on my phone|on phone|on my mobile|on android)\b/i.test(q)) {
+      cleanQuery = query.replace(new RegExp(pcTargetRegex, "gi"), "").trim();
+    } else if (mobileTargetRegex.test(q)) {
       targetDevice = "mobile";
-      cleanQuery = query.replace(/\b(on mobile|on my phone|on phone|on my mobile|on android)\b/gi, "").trim();
+      cleanQuery = query.replace(new RegExp(mobileTargetRegex, "gi"), "").trim();
     }
 
-    if (targetDevice && targetDevice !== currentDevice) {
+    if (targetDevice && targetDevice !== detectedCurrentDevice) {
       try {
         const bridgeRes = await fetch("/api/command-bridge", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            sourceDevice: currentDevice,
+            sourceDevice: detectedCurrentDevice,
             targetDevice: targetDevice,
             query: cleanQuery || query,
           }),
@@ -926,8 +940,10 @@ export class AiBrain {
       }
     }
 
+    const effectiveDevice: "pc" | "mobile" = targetDevice || detectedCurrentDevice;
+
     // Top-Level Universal NLP Intent Parser & Precision Dispatch Engine
-    const nlp = AiBrain.parseNlpIntent(query);
+    const nlp = AiBrain.parseNlpIntent(cleanQuery || query);
 
     // -0.09 Voice & Microphone Listening Control Directive (Turn off listening, Stop listening, Turn on listening, Mute)
     if (nlp.intent === "VOICE_CONTROL") {
@@ -1282,7 +1298,7 @@ export class AiBrain {
     // 1. Explicit / Implicit URL & Link Navigation (Top Priority)
     if (nlp.intent === "OPEN_URL") {
       const { url, siteName, browser } = nlp.entities;
-      if (currentDevice === "mobile") {
+      if (effectiveDevice === "mobile") {
         try {
           window.location.href = url;
           return {
@@ -1358,27 +1374,36 @@ export class AiBrain {
       }
     }
 
-    // 1d. Direct PC Desktop Application Launcher
+    // 1d. Direct Application Launcher (Mobile Native vs PC Desktop)
     if (nlp.intent === "LAUNCH_APP") {
       const { app } = nlp.entities as any;
-      try {
-        const res = await fetch("/api/system-command", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "launch_app", target: app }),
-        });
-        const data = await res.json();
+      if (effectiveDevice === "mobile") {
+        const mobRes = launchMobileIntent(app);
         return {
-          toolName: "Windows Desktop Execution Engine",
-          output: data.message || `Launched ${app} on your Windows PC, Boss!`,
-          data: { launched: app },
+          toolName: "Mobile Application Launcher",
+          output: mobRes.message || `Launched ${app} on your mobile device, Boss!`,
+          data: { launched: app, device: "mobile" },
         };
-      } catch (err) {
-        return {
-          toolName: "Windows Desktop Execution Engine",
-          output: `Launched ${app} on your Windows PC, Boss!`,
-          data: { launched: app },
-        };
+      } else {
+        try {
+          const res = await fetch("/api/system-command", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "launch_app", target: app }),
+          });
+          const data = await res.json();
+          return {
+            toolName: "Windows Desktop Execution Engine",
+            output: data.message || `Launched ${app} on your Windows PC, Boss!`,
+            data: { launched: app, device: "pc" },
+          };
+        } catch (err) {
+          return {
+            toolName: "Windows Desktop Execution Engine",
+            output: `Launched ${app} on your Windows PC, Boss!`,
+            data: { launched: app, device: "pc" },
+          };
+        }
       }
     }
 
@@ -1586,7 +1611,7 @@ export class AiBrain {
       const turnOn = !isOff && (q.includes("on") || q.includes("enable") || q.includes("start") || q.includes("turn on") || q.includes("activate"));
       const actionText = turnOn ? "ON" : "OFF";
 
-      if (currentDevice === "mobile" || /\b(on mobile|on my phone|on phone|on my mobile|on android)\b/i.test(q)) {
+      if (effectiveDevice === "mobile" || /\b(on mobile|on my phone|on phone|on my mobile|on android|in mobile|in my phone|in phone|in my mobile|in android)\b/i.test(q)) {
         triggerHapticVibration([100]);
         const res = launchMobileIntent("battery saver settings");
         return {
@@ -1620,10 +1645,10 @@ export class AiBrain {
       q.includes("airplane mode") ||
       q.includes("flight mode") ||
       (q.includes("mobile") && (q.includes("wifi") || q.includes("bluetooth") || q.includes("settings"))) ||
-      (currentDevice === "mobile" &&
+      (effectiveDevice === "mobile" &&
         (q.startsWith("open ") || q.startsWith("launch ") || q.startsWith("start ") || q.includes("whatsapp") || q.includes("camera") || q.includes("spotify") || q.includes("instagram") || q.includes("calculator") || q.includes("gallery")));
 
-    if (isMobileAppOrSettingsReq && !/\b(on pc|on laptop|on my pc|on my laptop|on computer|on my computer)\b/i.test(q)) {
+    if (isMobileAppOrSettingsReq && !/\b(on pc|on laptop|on my pc|on my laptop|on computer|on my computer|in pc|in laptop|in my pc|in my laptop)\b/i.test(q)) {
       triggerHapticVibration([100]);
       const res = launchMobileIntent(query);
       if (res.success) {
@@ -2125,7 +2150,7 @@ export class AiBrain {
       else if (/\b(firefox)\b/i.test(q)) bTarget = "firefox";
 
       if (targetUrl) {
-        if (currentDevice === "mobile") {
+        if (effectiveDevice === "mobile") {
           try {
             window.location.href = targetUrl;
             return {
