@@ -1,5 +1,5 @@
 /**
- * MONDAY Universal Multilingual Code Synthesis Engine
+ * AEGIS Universal Multilingual Code Synthesis Engine
  * Generates idiomatic, production-grade source code for any programming language,
  * algorithm, mathematical operation (+, -, *, /, %), data structure, or software task.
  */
@@ -149,7 +149,7 @@ export class CodeEngine {
     const activeKey = apiKey || (typeof process !== "undefined" ? process.env.GEMINI_API_KEY : undefined);
     if (activeKey) {
       try {
-        const prompt = `You are MONDAY Code Engine. The user wants source code for: "${query}".
+        const prompt = `You are AEGIS Code Engine. The user wants source code for: "${query}".
 Output ONLY the clean, well-commented source code for ${langMeta.name}.
 Do NOT use markdown code fence backticks. Output plain executable code directly.
 Add helpful comments explaining how the code functions.
@@ -190,7 +190,7 @@ Ensure standard mathematical symbols (+, -, *, /, %) are used directly for arith
 
   public static getFileName(langKey: string, conceptKey: string, query: string): string {
     const langMeta = LANGUAGE_MAP[langKey] || LANGUAGE_MAP.python;
-    const base = conceptKey !== "generic" ? conceptKey : "monday_script";
+    const base = conceptKey !== "generic" ? conceptKey : "aegis_script";
     return `${base}${langMeta.ext}`;
   }
 
@@ -207,7 +207,7 @@ Ensure standard mathematical symbols (+, -, *, /, %) are used directly for arith
             langName: name,
             fileName: `subtract_numbers${ext}`,
             summary: "Python Subtraction (a - b)",
-            code: `# MONDAY Neural Code Engine: Subtraction of (a - b) in Python
+            code: `# AEGIS Neural Code Engine: Subtraction of (a - b) in Python
 
 def subtract_two_numbers(a: float, b: float) -> float:
     """Calculates and returns the difference of two numbers (a - b)."""
@@ -217,7 +217,7 @@ if __name__ == "__main__":
     a = 50
     b = 20
     result = subtract_two_numbers(a, b)
-    print(f"MONDAY Computation Result: {a} - {b} = {result}")
+    print(f"AEGIS Computation Result: {a} - {b} = {result}")
 `,
           };
         case "c":
@@ -225,7 +225,7 @@ if __name__ == "__main__":
             langName: name,
             fileName: `subtract_numbers${ext}`,
             summary: "C Subtraction (a - b)",
-            code: `// MONDAY Neural Code Engine: Subtraction of (a - b) in C
+            code: `// AEGIS Neural Code Engine: Subtraction of (a - b) in C
 #include <stdio.h>
 
 int subtractTwoNumbers(int a, int b) {
@@ -235,7 +235,7 @@ int subtractTwoNumbers(int a, int b) {
 int main() {
     int a = 50, b = 20;
     int diff = subtractTwoNumbers(a, b);
-    printf("MONDAY Computation Result: %d - %d = %d\n", a, b, diff);
+    printf("AEGIS Computation Result: %d - %d = %d\n", a, b, diff);
     return 0;
 }
 `,
@@ -245,7 +245,7 @@ int main() {
             langName: name,
             fileName: `subtract_numbers${ext}`,
             summary: "C++ Subtraction (a - b)",
-            code: `// MONDAY Neural Code Engine: Subtraction of (a - b) in C++
+            code: `// AEGIS Neural Code Engine: Subtraction of (a - b) in C++
 #include <iostream>
 
 double subtractTwoNumbers(double a, double b) {
@@ -255,7 +255,7 @@ double subtractTwoNumbers(double a, double b) {
 int main() {
     double a = 50, b = 20;
     double result = subtractTwoNumbers(a, b);
-    std::cout << "MONDAY Computation Result: " << a << " - " << b << " = " << result << std::endl;
+    std::cout << "AEGIS Computation Result: " << a << " - " << b << " = " << result << std::endl;
     return 0;
 }
 `,
@@ -265,7 +265,7 @@ int main() {
             langName: name,
             fileName: `SubtractNumbers${ext}`,
             summary: "Java Subtraction (a - b)",
-            code: `// MONDAY Neural Code Engine: Subtraction of (a - b) in Java
+            code: `// AEGIS Neural Code Engine: Subtraction of (a - b) in Java
 
 public class SubtractNumbers {
     public static double subtractTwoNumbers(double a, double b) {
@@ -275,7 +275,7 @@ public class SubtractNumbers {
     public static void main(String[] args) {
         double a = 50, b = 20;
         double result = subtractTwoNumbers(a, b);
-        System.out.println("MONDAY Computation Result: " + a + " - " + b + " = " + result);
+        System.out.println("AEGIS Computation Result: " + a + " - " + b + " = " + result);
     }
 }
 `,
@@ -285,7 +285,7 @@ public class SubtractNumbers {
             langName: name,
             fileName: `subtract_numbers${ext}`,
             summary: "JavaScript Subtraction (a - b)",
-            code: `// MONDAY Neural Code Engine: Subtraction of (a - b) in JavaScript
+            code: `// AEGIS Neural Code Engine: Subtraction of (a - b) in JavaScript
 function subtractTwoNumbers(a, b) {
     return a - b;
 }
@@ -293,7 +293,7 @@ function subtractTwoNumbers(a, b) {
 const a = 50;
 const b = 20;
 const diff = subtractTwoNumbers(a, b);
-console.log(\`MONDAY Computation Result: \${a} - \${b} = \${diff}\`);
+console.log(\`AEGIS Computation Result: \${a} - \${b} = \${diff}\`);
 `,
           };
         default:
@@ -301,7 +301,7 @@ console.log(\`MONDAY Computation Result: \${a} - \${b} = \${diff}\`);
             langName: name,
             fileName: `subtract_numbers${ext}`,
             summary: `${name} Subtraction`,
-            code: `# MONDAY Neural Code Engine: Subtraction in ${name}
+            code: `# AEGIS Neural Code Engine: Subtraction in ${name}
 def subtract(a, b):
     return a - b
 
@@ -319,7 +319,7 @@ print("Result:", subtract(50, 20))
             langName: name,
             fileName: `multiply_numbers${ext}`,
             summary: "Python Multiplication (a * b)",
-            code: `# MONDAY Neural Code Engine: Multiplication of (a * b) in Python
+            code: `# AEGIS Neural Code Engine: Multiplication of (a * b) in Python
 
 def multiply_two_numbers(a: float, b: float) -> float:
     """Calculates and returns the product of two numbers (a * b)."""
@@ -329,7 +329,7 @@ if __name__ == "__main__":
     a = 12
     b = 8
     result = multiply_two_numbers(a, b)
-    print(f"MONDAY Computation Result: {a} * {b} = {result}")
+    print(f"AEGIS Computation Result: {a} * {b} = {result}")
 `,
           };
         case "c":
@@ -337,7 +337,7 @@ if __name__ == "__main__":
             langName: name,
             fileName: `multiply_numbers${ext}`,
             summary: "C Multiplication (a * b)",
-            code: `// MONDAY Neural Code Engine: Multiplication of (a * b) in C
+            code: `// AEGIS Neural Code Engine: Multiplication of (a * b) in C
 #include <stdio.h>
 
 int multiplyTwoNumbers(int a, int b) {
@@ -347,7 +347,7 @@ int multiplyTwoNumbers(int a, int b) {
 int main() {
     int a = 12, b = 8;
     int product = multiplyTwoNumbers(a, b);
-    printf("MONDAY Computation Result: %d * %d = %d\n", a, b, product);
+    printf("AEGIS Computation Result: %d * %d = %d\n", a, b, product);
     return 0;
 }
 `,
@@ -357,7 +357,7 @@ int main() {
             langName: name,
             fileName: `multiply_numbers${ext}`,
             summary: "C++ Multiplication (a * b)",
-            code: `// MONDAY Neural Code Engine: Multiplication of (a * b) in C++
+            code: `// AEGIS Neural Code Engine: Multiplication of (a * b) in C++
 #include <iostream>
 
 double multiplyTwoNumbers(double a, double b) {
@@ -367,7 +367,7 @@ double multiplyTwoNumbers(double a, double b) {
 int main() {
     double a = 12, b = 8;
     double result = multiplyTwoNumbers(a, b);
-    std::cout << "MONDAY Computation Result: " << a << " * " << b << " = " << result << std::endl;
+    std::cout << "AEGIS Computation Result: " << a << " * " << b << " = " << result << std::endl;
     return 0;
 }
 `,
@@ -377,7 +377,7 @@ int main() {
             langName: name,
             fileName: `MultiplyNumbers${ext}`,
             summary: "Java Multiplication (a * b)",
-            code: `// MONDAY Neural Code Engine: Multiplication of (a * b) in Java
+            code: `// AEGIS Neural Code Engine: Multiplication of (a * b) in Java
 
 public class MultiplyNumbers {
     public static double multiplyTwoNumbers(double a, double b) {
@@ -387,7 +387,7 @@ public class MultiplyNumbers {
     public static void main(String[] args) {
         double a = 12, b = 8;
         double result = multiplyTwoNumbers(a, b);
-        System.out.println("MONDAY Computation Result: " + a + " * " + b + " = " + result);
+        System.out.println("AEGIS Computation Result: " + a + " * " + b + " = " + result);
     }
 }
 `,
@@ -397,7 +397,7 @@ public class MultiplyNumbers {
             langName: name,
             fileName: `multiply_numbers${ext}`,
             summary: "JavaScript Multiplication (a * b)",
-            code: `// MONDAY Neural Code Engine: Multiplication of (a * b) in JavaScript
+            code: `// AEGIS Neural Code Engine: Multiplication of (a * b) in JavaScript
 function multiplyTwoNumbers(a, b) {
     return a * b;
 }
@@ -405,7 +405,7 @@ function multiplyTwoNumbers(a, b) {
 const a = 12;
 const b = 8;
 const product = multiplyTwoNumbers(a, b);
-console.log(\`MONDAY Computation Result: \${a} * \${b} = \${product}\`);
+console.log(\`AEGIS Computation Result: \${a} * \${b} = \${product}\`);
 `,
           };
         default:
@@ -413,7 +413,7 @@ console.log(\`MONDAY Computation Result: \${a} * \${b} = \${product}\`);
             langName: name,
             fileName: `multiply_numbers${ext}`,
             summary: `${name} Multiplication`,
-            code: `# MONDAY Neural Code Engine: Multiplication in ${name}
+            code: `# AEGIS Neural Code Engine: Multiplication in ${name}
 def multiply(a, b):
     return a * b
 
@@ -431,7 +431,7 @@ print("Result:", multiply(12, 8))
             langName: name,
             fileName: `divide_numbers${ext}`,
             summary: "Python Division (a / b)",
-            code: `# MONDAY Neural Code Engine: Division of (a / b) in Python
+            code: `# AEGIS Neural Code Engine: Division of (a / b) in Python
 
 def divide_two_numbers(a: float, b: float) -> float:
     """Calculates and returns the quotient of two numbers (a / b)."""
@@ -443,7 +443,7 @@ if __name__ == "__main__":
     a = 100
     b = 4
     result = divide_two_numbers(a, b)
-    print(f"MONDAY Computation Result: {a} / {b} = {result}")
+    print(f"AEGIS Computation Result: {a} / {b} = {result}")
 `,
           };
         case "c":
@@ -451,7 +451,7 @@ if __name__ == "__main__":
             langName: name,
             fileName: `divide_numbers${ext}`,
             summary: "C Division (a / b)",
-            code: `// MONDAY Neural Code Engine: Division of (a / b) in C
+            code: `// AEGIS Neural Code Engine: Division of (a / b) in C
 #include <stdio.h>
 
 double divideTwoNumbers(double a, double b) {
@@ -462,7 +462,7 @@ double divideTwoNumbers(double a, double b) {
 int main() {
     double a = 100, b = 4;
     double quotient = divideTwoNumbers(a, b);
-    printf("MONDAY Computation Result: %.2f / %.2f = %.2f\n", a, b, quotient);
+    printf("AEGIS Computation Result: %.2f / %.2f = %.2f\n", a, b, quotient);
     return 0;
 }
 `,
@@ -472,7 +472,7 @@ int main() {
             langName: name,
             fileName: `divide_numbers${ext}`,
             summary: "C++ Division (a / b)",
-            code: `// MONDAY Neural Code Engine: Division of (a / b) in C++
+            code: `// AEGIS Neural Code Engine: Division of (a / b) in C++
 #include <iostream>
 #include <stdexcept>
 
@@ -484,7 +484,7 @@ double divideTwoNumbers(double a, double b) {
 int main() {
     double a = 100, b = 4;
     double result = divideTwoNumbers(a, b);
-    std::cout << "MONDAY Computation Result: " << a << " / " << b << " = " << result << std::endl;
+    std::cout << "AEGIS Computation Result: " << a << " / " << b << " = " << result << std::endl;
     return 0;
 }
 `,
@@ -494,7 +494,7 @@ int main() {
             langName: name,
             fileName: `DivideNumbers${ext}`,
             summary: "Java Division (a / b)",
-            code: `// MONDAY Neural Code Engine: Division of (a / b) in Java
+            code: `// AEGIS Neural Code Engine: Division of (a / b) in Java
 
 public class DivideNumbers {
     public static double divideTwoNumbers(double a, double b) {
@@ -505,7 +505,7 @@ public class DivideNumbers {
     public static void main(String[] args) {
         double a = 100, b = 4;
         double result = divideTwoNumbers(a, b);
-        System.out.println("MONDAY Computation Result: " + a + " / " + b + " = " + result);
+        System.out.println("AEGIS Computation Result: " + a + " / " + b + " = " + result);
     }
 }
 `,
@@ -515,7 +515,7 @@ public class DivideNumbers {
             langName: name,
             fileName: `divide_numbers${ext}`,
             summary: "JavaScript Division (a / b)",
-            code: `// MONDAY Neural Code Engine: Division of (a / b) in JavaScript
+            code: `// AEGIS Neural Code Engine: Division of (a / b) in JavaScript
 function divideTwoNumbers(a, b) {
     if (b === 0) throw new Error("Cannot divide by zero.");
     return a / b;
@@ -524,7 +524,7 @@ function divideTwoNumbers(a, b) {
 const a = 100;
 const b = 4;
 const result = divideTwoNumbers(a, b);
-console.log(\`MONDAY Computation Result: \${a} / \${b} = \${result}\`);
+console.log(\`AEGIS Computation Result: \${a} / \${b} = \${result}\`);
 `,
           };
         default:
@@ -532,7 +532,7 @@ console.log(\`MONDAY Computation Result: \${a} / \${b} = \${result}\`);
             langName: name,
             fileName: `divide_numbers${ext}`,
             summary: `${name} Division`,
-            code: `# MONDAY Neural Code Engine: Division in ${name}
+            code: `# AEGIS Neural Code Engine: Division in ${name}
 def divide(a, b):
     if b == 0: return 0
     return a / b
@@ -549,7 +549,7 @@ print("Result:", divide(100, 4))
         langName: name,
         fileName: `modulo_numbers${ext}`,
         summary: `${name} Modulo (a % b)`,
-        code: `# MONDAY Neural Code Engine: Modulo (a % b) in ${name}
+        code: `# AEGIS Neural Code Engine: Modulo (a % b) in ${name}
 
 def modulo_two_numbers(a: int, b: int) -> int:
     """Calculates and returns the remainder of two numbers (a % b)."""
@@ -559,7 +559,7 @@ if __name__ == "__main__":
     a = 29
     b = 5
     result = modulo_two_numbers(a, b)
-    print(f"MONDAY Computation Result: {a} % {b} = {result}")
+    print(f"AEGIS Computation Result: {a} % {b} = {result}")
 `,
       };
     }
@@ -572,7 +572,7 @@ if __name__ == "__main__":
             langName: name,
             fileName: `add_numbers${ext}`,
             summary: "Python Addition (a + b)",
-            code: `# MONDAY Neural Code Engine: Addition of (a + b) in Python
+            code: `# AEGIS Neural Code Engine: Addition of (a + b) in Python
 
 def add_two_numbers(a: float, b: float) -> float:
     """Calculates and returns the sum of two numbers (a + b)."""
@@ -582,7 +582,7 @@ if __name__ == "__main__":
     a = 15
     b = 25
     result = add_two_numbers(a, b)
-    print(f"MONDAY Computation Result: {a} + {b} = {result}")
+    print(f"AEGIS Computation Result: {a} + {b} = {result}")
 `,
           };
         case "c":
@@ -590,7 +590,7 @@ if __name__ == "__main__":
             langName: name,
             fileName: `add_numbers${ext}`,
             summary: "C Addition (a + b)",
-            code: `// MONDAY Neural Code Engine: Addition of (a + b) in C
+            code: `// AEGIS Neural Code Engine: Addition of (a + b) in C
 #include <stdio.h>
 
 int addTwoNumbers(int a, int b) {
@@ -600,7 +600,7 @@ int addTwoNumbers(int a, int b) {
 int main() {
     int a = 15, b = 25;
     int sum = addTwoNumbers(a, b);
-    printf("MONDAY Computation Result: %d + %d = %d\n", a, b, sum);
+    printf("AEGIS Computation Result: %d + %d = %d\n", a, b, sum);
     return 0;
 }
 `,
@@ -610,7 +610,7 @@ int main() {
             langName: name,
             fileName: `add_numbers${ext}`,
             summary: "C++ Addition (a + b)",
-            code: `// MONDAY Neural Code Engine: Addition of (a + b) in C++
+            code: `// AEGIS Neural Code Engine: Addition of (a + b) in C++
 #include <iostream>
 
 int addTwoNumbers(int a, int b) {
@@ -620,7 +620,7 @@ int addTwoNumbers(int a, int b) {
 int main() {
     int a = 15, b = 25;
     int sum = addTwoNumbers(a, b);
-    std::cout << "MONDAY Computation Result: " << a << " + " << b << " = " << sum << std::endl;
+    std::cout << "AEGIS Computation Result: " << a << " + " << b << " = " << sum << std::endl;
     return 0;
 }
 `,
@@ -630,7 +630,7 @@ int main() {
             langName: name,
             fileName: `AddNumbers${ext}`,
             summary: "Java Addition (a + b)",
-            code: `// MONDAY Neural Code Engine: Addition of (a + b) in Java
+            code: `// AEGIS Neural Code Engine: Addition of (a + b) in Java
 
 public class AddNumbers {
     public static int addTwoNumbers(int a, int b) {
@@ -641,7 +641,7 @@ public class AddNumbers {
         int a = 15;
         int b = 25;
         int sum = addTwoNumbers(a, b);
-        System.out.println("MONDAY Computation Result: " + a + " + " + b + " = " + sum);
+        System.out.println("AEGIS Computation Result: " + a + " + " + b + " = " + sum);
     }
 }
 `,
@@ -651,7 +651,7 @@ public class AddNumbers {
             langName: name,
             fileName: `add_numbers${ext}`,
             summary: "JavaScript Addition (a + b)",
-            code: `// MONDAY Neural Code Engine: Addition of (a + b) in JavaScript
+            code: `// AEGIS Neural Code Engine: Addition of (a + b) in JavaScript
 function addTwoNumbers(a, b) {
     return a + b;
 }
@@ -659,7 +659,7 @@ function addTwoNumbers(a, b) {
 const a = 15;
 const b = 25;
 const sum = addTwoNumbers(a, b);
-console.log(\`MONDAY Computation Result: \${a} + \${b} = \${sum}\`);
+console.log(\`AEGIS Computation Result: \${a} + \${b} = \${sum}\`);
 `,
           };
         default:
@@ -667,7 +667,7 @@ console.log(\`MONDAY Computation Result: \${a} + \${b} = \${sum}\`);
             langName: name,
             fileName: `add_numbers${ext}`,
             summary: `${name} Addition`,
-            code: `# MONDAY Neural Code Engine: Addition in ${name}
+            code: `# AEGIS Neural Code Engine: Addition in ${name}
 def add(a, b):
     return a + b
 
@@ -685,10 +685,10 @@ print("Result:", add(15, 25))
             langName: name,
             fileName: `hello_world${ext}`,
             summary: "Python Hello World",
-            code: `# MONDAY Neural Code Engine: Hello World in Python
+            code: `# AEGIS Neural Code Engine: Hello World in Python
 
 def main():
-    print("Hello, World! Generated by MONDAY for Boss Nani.")
+    print("Hello, World! Generated by AEGIS for Boss Nani.")
 
 if __name__ == "__main__":
     main()
@@ -699,11 +699,11 @@ if __name__ == "__main__":
             langName: name,
             fileName: `hello_world${ext}`,
             summary: "C Hello World",
-            code: `// MONDAY Neural Code Engine: Hello World in C
+            code: `// AEGIS Neural Code Engine: Hello World in C
 #include <stdio.h>
 
 int main() {
-    printf("Hello, World! Generated by MONDAY for Boss Nani.\n");
+    printf("Hello, World! Generated by AEGIS for Boss Nani.\n");
     return 0;
 }
 `,
@@ -713,11 +713,11 @@ int main() {
             langName: name,
             fileName: `hello_world${ext}`,
             summary: "C++ Hello World",
-            code: `// MONDAY Neural Code Engine: Hello World in C++
+            code: `// AEGIS Neural Code Engine: Hello World in C++
 #include <iostream>
 
 int main() {
-    std::cout << "Hello, World! Generated by MONDAY for Boss Nani." << std::endl;
+    std::cout << "Hello, World! Generated by AEGIS for Boss Nani." << std::endl;
     return 0;
 }
 `,
@@ -727,11 +727,11 @@ int main() {
             langName: name,
             fileName: `HelloWorld${ext}`,
             summary: "Java Hello World",
-            code: `// MONDAY Neural Code Engine: Hello World in Java
+            code: `// AEGIS Neural Code Engine: Hello World in Java
 
 public class HelloWorld {
     public static void main(String[] args) {
-        System.out.println("Hello, World! Generated by MONDAY for Boss Nani.");
+        System.out.println("Hello, World! Generated by AEGIS for Boss Nani.");
     }
 }
 `,
@@ -741,12 +741,12 @@ public class HelloWorld {
             langName: name,
             fileName: `Program${ext}`,
             summary: "C# Hello World",
-            code: `// MONDAY Neural Code Engine: Hello World in C#
+            code: `// AEGIS Neural Code Engine: Hello World in C#
 using System;
 
 class Program {
     static void Main() {
-        Console.WriteLine("Hello, World! Generated by MONDAY for Boss Nani.");
+        Console.WriteLine("Hello, World! Generated by AEGIS for Boss Nani.");
     }
 }
 `,
@@ -756,8 +756,8 @@ class Program {
             langName: name,
             fileName: `hello_world${ext}`,
             summary: "JavaScript Hello World",
-            code: `// MONDAY Neural Code Engine: Hello World in JavaScript
-console.log("Hello, World! Generated by MONDAY for Boss Nani.");
+            code: `// AEGIS Neural Code Engine: Hello World in JavaScript
+console.log("Hello, World! Generated by AEGIS for Boss Nani.");
 `,
           };
         case "html":
@@ -769,11 +769,11 @@ console.log("Hello, World! Generated by MONDAY for Boss Nani.");
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>MONDAY Hello World</title>
+  <title>AEGIS Hello World</title>
 </head>
 <body style="font-family: sans-serif; background: #0b0f19; color: #00f0ff; text-align: center; padding-top: 100px;">
   <h1>Hello, World!</h1>
-  <p>Generated by MONDAY for Boss Nani.</p>
+  <p>Generated by AEGIS for Boss Nani.</p>
 </body>
 </html>
 `,
@@ -783,8 +783,8 @@ console.log("Hello, World! Generated by MONDAY for Boss Nani.");
             langName: name,
             fileName: `hello_world${ext}`,
             summary: "SQL Hello World",
-            code: `-- MONDAY Neural Code Engine: Hello World in SQL
-SELECT 'Hello, World! Generated by MONDAY for Boss Nani.' AS WelcomeMessage;
+            code: `-- AEGIS Neural Code Engine: Hello World in SQL
+SELECT 'Hello, World! Generated by AEGIS for Boss Nani.' AS WelcomeMessage;
 `,
           };
         case "rust":
@@ -792,9 +792,9 @@ SELECT 'Hello, World! Generated by MONDAY for Boss Nani.' AS WelcomeMessage;
             langName: name,
             fileName: `main${ext}`,
             summary: "Rust Hello World",
-            code: `// MONDAY Neural Code Engine: Hello World in Rust
+            code: `// AEGIS Neural Code Engine: Hello World in Rust
 fn main() {
-    println!("Hello, World! Generated by MONDAY for Boss Nani.");
+    println!("Hello, World! Generated by AEGIS for Boss Nani.");
 }
 `,
           };
@@ -803,13 +803,13 @@ fn main() {
             langName: name,
             fileName: `main${ext}`,
             summary: "Go Hello World",
-            code: `// MONDAY Neural Code Engine: Hello World in Go
+            code: `// AEGIS Neural Code Engine: Hello World in Go
 package main
 
 import "fmt"
 
 func main() {
-    fmt.Println("Hello, World! Generated by MONDAY for Boss Nani.")
+    fmt.Println("Hello, World! Generated by AEGIS for Boss Nani.")
 }
 `,
           };
@@ -818,8 +818,8 @@ func main() {
             langName: name,
             fileName: `hello_world${ext}`,
             summary: `${name} Hello World`,
-            code: `# MONDAY Neural Code Engine: Hello World in ${name}
-print("Hello, World! Generated by MONDAY for Boss Nani.")
+            code: `# AEGIS Neural Code Engine: Hello World in ${name}
+print("Hello, World! Generated by AEGIS for Boss Nani.")
 `,
           };
       }
@@ -833,7 +833,7 @@ print("Hello, World! Generated by MONDAY for Boss Nani.")
             langName: name,
             fileName: `fibonacci${ext}`,
             summary: "Python Fibonacci Series",
-            code: `# MONDAY Neural Code Engine: Fibonacci Series in Python
+            code: `# AEGIS Neural Code Engine: Fibonacci Series in Python
 
 def generate_fibonacci(n: int) -> list:
     series = []
@@ -854,7 +854,7 @@ if __name__ == "__main__":
             langName: name,
             fileName: `fibonacci${ext}`,
             summary: "C++ Fibonacci Series",
-            code: `// MONDAY Neural Code Engine: Fibonacci Series in C++
+            code: `// AEGIS Neural Code Engine: Fibonacci Series in C++
 #include <iostream>
 #include <vector>
 
@@ -883,7 +883,7 @@ int main() {
             langName: name,
             fileName: `Fibonacci${ext}`,
             summary: "Java Fibonacci Series",
-            code: `// MONDAY Neural Code Engine: Fibonacci Series in Java
+            code: `// AEGIS Neural Code Engine: Fibonacci Series in Java
 
 public class Fibonacci {
     public static void printFibonacci(int n) {
@@ -909,7 +909,7 @@ public class Fibonacci {
             langName: name,
             fileName: `fibonacci${ext}`,
             summary: `${name} Fibonacci`,
-            code: `# MONDAY Neural Code Engine: Fibonacci in ${name}
+            code: `# AEGIS Neural Code Engine: Fibonacci in ${name}
 def fib(n):
     a, b = 0, 1
     for _ in range(n):
@@ -928,7 +928,7 @@ fib(10)
         langName: name,
         fileName: `factorial${ext}`,
         summary: `${name} Factorial Calculation`,
-        code: `# MONDAY Neural Code Engine: Factorial Calculation in ${name}
+        code: `# AEGIS Neural Code Engine: Factorial Calculation in ${name}
 
 def factorial(n: int) -> int:
     if n < 0:
@@ -951,7 +951,7 @@ if __name__ == "__main__":
         langName: name,
         fileName: `prime_checker${ext}`,
         summary: `${name} Prime Number Checker`,
-        code: `# MONDAY Neural Code Engine: Prime Number Checker in ${name}
+        code: `# AEGIS Neural Code Engine: Prime Number Checker in ${name}
 import math
 
 def is_prime(n: int) -> bool:
@@ -983,7 +983,7 @@ if __name__ == "__main__":
             langName: name,
             fileName: `BinarySearch${ext}`,
             summary: "Java Binary Search",
-            code: `// MONDAY Neural Code Engine: Binary Search in Java
+            code: `// AEGIS Neural Code Engine: Binary Search in Java
 
 public class BinarySearch {
     public static int binarySearch(int[] arr, int target) {
@@ -1011,7 +1011,7 @@ public class BinarySearch {
             langName: name,
             fileName: `binary_search${ext}`,
             summary: `${name} Binary Search`,
-            code: `# MONDAY Neural Code Engine: Binary Search in ${name}
+            code: `# AEGIS Neural Code Engine: Binary Search in ${name}
 
 def binary_search(arr, target):
     left, right = 0, len(arr) - 1
@@ -1041,7 +1041,7 @@ if __name__ == "__main__":
         langName: name,
         fileName: `bubble_sort${ext}`,
         summary: `${name} Bubble Sort Algorithm`,
-        code: `# MONDAY Neural Code Engine: Bubble Sort Algorithm in ${name}
+        code: `# AEGIS Neural Code Engine: Bubble Sort Algorithm in ${name}
 
 def bubble_sort(arr):
     n = len(arr)
@@ -1070,7 +1070,7 @@ if __name__ == "__main__":
         langName: name,
         fileName: `palindrome_checker${ext}`,
         summary: `${name} Palindrome Checker`,
-        code: `# MONDAY Neural Code Engine: Palindrome Checker in ${name}
+        code: `# AEGIS Neural Code Engine: Palindrome Checker in ${name}
 
 def is_palindrome(s: str) -> bool:
     clean_s = ''.join(c.lower() for c in s if c.isalnum())
@@ -1095,7 +1095,7 @@ if __name__ == "__main__":
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>MONDAY Cybernetic Calculator</title>
+  <title>AEGIS Cybernetic Calculator</title>
   <style>
     body { background: #0f172a; color: #fff; display: flex; justify-content: center; align-items: center; height: 100vh; font-family: 'Segoe UI', sans-serif; margin: 0; }
     .calc { background: #1e293b; padding: 24px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); width: 280px; }
@@ -1146,7 +1146,7 @@ if __name__ == "__main__":
           langName: name,
           fileName: `calculator${ext}`,
           summary: `${name} Interactive Calculator (+, -, *, /)`,
-          code: `# MONDAY Neural Code Engine: CLI Calculator (+, -, *, /) in ${name}
+          code: `# AEGIS Neural Code Engine: CLI Calculator (+, -, *, /) in ${name}
 
 def calculate(a: float, b: float, op: str) -> float:
     """Performs basic arithmetic operations (+, -, *, /)."""
@@ -1159,7 +1159,7 @@ def calculate(a: float, b: float, op: str) -> float:
     else: raise ValueError(f"Unknown operator: {op}")
 
 if __name__ == "__main__":
-    print("MONDAY Calculator Engine (+, -, *, /)")
+    print("AEGIS Calculator Engine (+, -, *, /)")
     print("10 + 5 =", calculate(10, 5, '+'))
     print("10 - 5 =", calculate(10, 5, '-'))
     print("10 * 5 =", calculate(10, 5, '*'))
@@ -1173,14 +1173,14 @@ if __name__ == "__main__":
     const cleanQ = query.replace(/[\\/"']/g, "");
     return {
       langName: name,
-      fileName: `monday_script${ext}`,
+      fileName: `aegis_script${ext}`,
       summary: `${name} Script for ${cleanQ}`,
-      code: `# MONDAY Multilingual Neural Code Engine
+      code: `# AEGIS Multilingual Neural Code Engine
 # Directive: ${cleanQ}
 # Language: ${name}
 
 def execute_task():
-    print("MONDAY Directive Executed: ${cleanQ}")
+    print("AEGIS Directive Executed: ${cleanQ}")
     # Implement custom logic below:
     return True
 

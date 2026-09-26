@@ -74,12 +74,13 @@ public class MONDAYWindowManager {
                     string lowerTitle = title.ToLower();
                     bool isTargetMatch = false;
 
-                    bool isSelfUI = lowerTitle.Contains("monday orb") ||
+                    bool isSelfUI = lowerTitle.Contains("aegis") ||
+                                    lowerTitle.Contains("monday orb") ||
                                     lowerTitle.Contains("ultron") ||
                                     lowerTitle.Contains("localhost:3000") ||
                                     lowerTitle.Contains("127.0.0.1:3000");
 
-                    bool isTargetSelf = tgt == "monday" || tgt == "yourself" || tgt == "ultron" || tgt == "orb" || tgt == "self" || tgt == "you";
+                    bool isTargetSelf = tgt == "aegis" || tgt == "monday" || tgt == "yourself" || tgt == "ultron" || tgt == "orb" || tgt == "self" || tgt == "you";
 
                     if (isSelfUI) {
                         if (act == "close") return true;
@@ -153,8 +154,8 @@ public class MONDAYWindowManager {
         }
 
         string appLabel = !string.IsNullOrEmpty(matchedTitle) ? matchedTitle : matchedProcess;
-        if (isTargetSelf || (matchedTitle != null && (matchedTitle.ToLower().Contains("monday") || matchedTitle.ToLower().Contains("localhost:3000")))) {
-            appLabel = "MONDAY interface";
+        if (isTargetSelf || (matchedTitle != null && (matchedTitle.ToLower().Contains("aegis") || matchedTitle.ToLower().Contains("monday") || matchedTitle.ToLower().Contains("localhost:3000")))) {
+            appLabel = "AEGIS interface";
         } else if (appLabel.Length > 40) {
             appLabel = appLabel.Substring(0, 37) + "...";
         }

@@ -40,7 +40,7 @@ export class VoiceEngine {
   constructor(callbacks: VoiceEngineCallbacks) {
     this.callbacks = callbacks;
     if (typeof window !== "undefined") {
-      const savedLang = localStorage.getItem("monday_stt_lang");
+      const savedLang = localStorage.getItem("aegis_stt_lang") || localStorage.getItem("monday_stt_lang");
       if (savedLang) {
         this.sttLang = savedLang;
       } else {
@@ -428,7 +428,7 @@ export class VoiceEngine {
   public setSttLanguage(lang: "en-IN" | "en-US" | "en-GB") {
     this.sttLang = lang;
     if (typeof window !== "undefined") {
-      localStorage.setItem("monday_stt_lang", lang);
+      localStorage.setItem("aegis_stt_lang", lang);
     }
     if (this.recognition) {
       this.recognition.lang = lang;
@@ -437,7 +437,7 @@ export class VoiceEngine {
 
   public setSpeechEngine(engine: "core" | "webspeech") {
     if (typeof window !== "undefined") {
-      localStorage.setItem("monday_use_core_audio", engine === "core" ? "true" : "false");
+      localStorage.setItem("aegis_use_core_audio", engine === "core" ? "true" : "false");
     }
     this.initSTT();
   }
@@ -505,7 +505,7 @@ export class VoiceEngine {
     // 1. Activate hardware microphone stream with echo cancellation & noise suppression
     await this.ensureMicStream();
 
-    const userPrefersCore = typeof window !== "undefined" ? localStorage.getItem("monday_use_core_audio") : null;
+    const userPrefersCore = typeof window !== "undefined" ? localStorage.getItem("aegis_use_core_audio") || localStorage.getItem("monday_use_core_audio") : null;
     // Default to Web Speech API (Edge/Chrome/PC App) for live real-time speech conversion and continuous listening
     const useCore = userPrefersCore === "true";
 

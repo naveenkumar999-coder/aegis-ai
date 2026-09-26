@@ -1,5 +1,5 @@
 /**
- * Live Internet Web Search & Knowledge Synthesis Engine for MONDAY AI
+ * Live Internet Web Search & Knowledge Synthesis Engine for AEGIS AI
  * Provides real-time internet access to answer any user question
  * using live web search snippets, Wikipedia summaries, and web intelligence.
  */
@@ -84,7 +84,7 @@ async function searchWikipedia(query: string): Promise<string | null> {
 
     const res = await fetch(wikiSearchUrl, {
       signal: controller.signal,
-      headers: { "User-Agent": "MondayAI/1.0 (monday@ultron.ai)" },
+      headers: { "User-Agent": "AegisAI/1.0 (aegis@ai.org)" },
     });
     clearTimeout(timeout);
 
@@ -98,7 +98,7 @@ async function searchWikipedia(query: string): Promise<string | null> {
             item.title
           )}`;
           const sumRes = await fetch(sumUrl, {
-            headers: { "User-Agent": "MondayAI/1.0" },
+            headers: { "User-Agent": "AegisAI/1.0" },
           });
           if (sumRes.ok) {
             const sumData = await sumRes.json();
@@ -124,7 +124,7 @@ async function queryFreeAi(query: string): Promise<string | null> {
     const timeout = setTimeout(() => controller.abort(), 6000);
 
     const systemPrompt =
-      "You are MONDAY, an advanced cybernetic AI assistant. Answer the user question concisely, factually and directly in 2 to 3 sentences. Address the user as Boss Nani or Boss.";
+      "You are AEGIS, an advanced cybernetic AI assistant. Answer the user question concisely, factually and directly in 2 to 3 sentences. Address the user as Boss Nani or Boss.";
     const fullPrompt = `${systemPrompt}\n\nUser Question: ${query}`;
     const url = `https://text.pollinations.ai/${encodeURIComponent(
       fullPrompt
@@ -132,7 +132,7 @@ async function queryFreeAi(query: string): Promise<string | null> {
 
     const res = await fetch(url, {
       signal: controller.signal,
-      headers: { "User-Agent": "MondayAI/1.0" },
+      headers: { "User-Agent": "AegisAI/1.0" },
     });
     clearTimeout(timeout);
 

@@ -1,7 +1,7 @@
 $WshShell = New-Object -ComObject WScript.Shell
 $targets = @(
-    "C:\Users\Boddupalli\Desktop\MONDAY AI.lnk",
-    "C:\Users\Boddupalli\OneDrive\Desktop\MONDAY AI.lnk"
+    "C:\Users\Boddupalli\Desktop\AEGIS AI.lnk",
+    "C:\Users\Boddupalli\OneDrive\Desktop\AEGIS AI.lnk"
 )
 
 foreach ($t in $targets) {
@@ -9,9 +9,9 @@ foreach ($t in $targets) {
         $parent = Split-Path $t -Parent
         if (Test-Path $parent) {
             $s = $WshShell.CreateShortcut($t)
-            $s.TargetPath = "d:\New folder\ultron-by-sagar-builds-main\Start_MONDAY.bat"
+            $s.TargetPath = "d:\New folder\ultron-by-sagar-builds-main\Start_AEGIS.bat"
             $s.WorkingDirectory = "d:\New folder\ultron-by-sagar-builds-main"
-            $s.Description = "Launch MONDAY AI Cybernetic Intelligence"
+            $s.Description = "Launch A.E.G.I.S. AI Cybernetic Intelligence"
             $s.Save()
             Write-Output "SUCCESS: Created desktop shortcut at $t"
         }

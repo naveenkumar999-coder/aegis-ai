@@ -66,7 +66,7 @@ public class OverlayService extends Service {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 NotificationChannel channel = new NotificationChannel(
                         CHANNEL_ID,
-                        "MONDAY AI Overlay",
+                        "AEGIS AI Overlay",
                         NotificationManager.IMPORTANCE_LOW
                 );
                 NotificationManager nm = getSystemService(NotificationManager.class);
@@ -75,7 +75,7 @@ public class OverlayService extends Service {
                 }
 
                 Notification notification = new Notification.Builder(this, CHANNEL_ID)
-                        .setContentTitle("MONDAY AI Floating Widget")
+                        .setContentTitle("AEGIS AI Floating Widget")
                         .setContentText("Active over Home Screen & Applications")
                         .setSmallIcon(android.R.drawable.ic_menu_compass)
                         .setOngoing(true)
@@ -150,7 +150,7 @@ public class OverlayService extends Service {
         header.setPadding(0, 0, 0, dpToPx(8));
 
         TextView title = new TextView(this);
-        title.setText("MONDAY AI");
+        title.setText("AEGIS AI");
         title.setTextColor(Color.parseColor("#ffaa30"));
         title.setTextSize(12);
         title.setTypeface(null, android.graphics.Typeface.BOLD);
@@ -189,7 +189,7 @@ public class OverlayService extends Service {
         cardView.addView(actionsRow);
 
         // Open App Button Row
-        Button openAppBtn = createStyledButton("⚡ OPEN MONDAY APP", "#ffaa30");
+        Button openAppBtn = createStyledButton("⚡ OPEN AEGIS APP", "#ffaa30");
         openAppBtn.setOnClickListener(v -> launchApp("com.monday.ai"));
         cardView.addView(openAppBtn);
 
@@ -280,7 +280,7 @@ public class OverlayService extends Service {
     }
 
     private void stopOverlaySelf() {
-        Toast.makeText(this, "MONDAY Overlay Turned Off", Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, "AEGIS Overlay Turned Off", Toast.LENGTH_SHORT).show();
         stopForeground(true);
         stopSelf();
     }

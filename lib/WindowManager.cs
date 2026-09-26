@@ -145,15 +145,16 @@ namespace MondayWindowManager {
                 }, IntPtr.Zero);
 
                 List<WindowInfo> matchedList = new List<WindowInfo>();
-                bool isTargetSelf = target == "monday" || target == "yourself" || target == "ultron" || target == "orb" || target == "self" || target == "you";
+                bool isTargetSelf = target == "aegis" || target == "monday" || target == "yourself" || target == "ultron" || target == "orb" || target == "self" || target == "you";
 
                 foreach (var win in windows) {
                     string lowerTitle = win.Title.ToLower();
                     string p = win.ProcessName;
                     bool isMatch = false;
 
-                    // Always protect the MONDAY Orb AI interface from accidental close or minimize
-                    bool isSelfUI = lowerTitle.Contains("monday orb") ||
+                    // Always protect the AEGIS Orb AI interface from accidental close or minimize
+                    bool isSelfUI = lowerTitle.Contains("aegis") ||
+                                    lowerTitle.Contains("monday orb") ||
                                     lowerTitle.Contains("monday ai") ||
                                     lowerTitle.Contains("monday voice") ||
                                     lowerTitle.Contains("ultron") ||
@@ -238,8 +239,8 @@ namespace MondayWindowManager {
                 }
 
                 string appDisplay = !string.IsNullOrEmpty(matchedList[0].Title) ? matchedList[0].Title : matchedList[0].ProcessName;
-                if (isTargetSelf || matchedList.Exists(w => w.Title.ToLower().Contains("monday orb") || w.Title.ToLower().Contains("localhost:3000") || w.Title.ToLower().Contains("ultron"))) {
-                    appDisplay = "MONDAY interface";
+                if (isTargetSelf || matchedList.Exists(w => w.Title.ToLower().Contains("aegis") || w.Title.ToLower().Contains("monday orb") || w.Title.ToLower().Contains("localhost:3000") || w.Title.ToLower().Contains("ultron"))) {
+                    appDisplay = "AEGIS interface";
                 } else if (appDisplay.Length > 45) {
                     appDisplay = appDisplay.Substring(0, 42) + "...";
                 }

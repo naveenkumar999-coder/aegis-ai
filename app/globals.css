@@ -440,10 +440,10 @@ body {
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
   pointer-events: auto;
   word-break: break-word;
-  animation: mondayBubbleFadeIn 0.2s ease-out;
+  animation: aegisBubbleFadeIn 0.2s ease-out;
 }
 
-@keyframes mondayBubbleFadeIn {
+@keyframes aegisBubbleFadeIn {
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
 }
@@ -841,7 +841,7 @@ body {
 }
 
 /* Holographic Floating Mobile OS Overlay Widget Animations */
-@keyframes mondayHoloPopIn {
+@keyframes aegisHoloPopIn {
   0% {
     opacity: 0;
     transform: scale(0.7) translateY(20px);
@@ -852,7 +852,7 @@ body {
   }
 }
 
-@keyframes mondayHoloFloat {
+@keyframes aegisHoloFloat {
   0%, 100% {
     transform: translateY(0px);
     box-shadow: 0 0 22px var(--theme-color-glow);
@@ -863,7 +863,7 @@ body {
   }
 }
 
-@keyframes mondayOrbPulse {
+@keyframes aegisOrbPulse {
   0%, 100% {
     transform: scale(1);
     box-shadow: 0 0 16px var(--theme-color-glow);
@@ -875,12 +875,12 @@ body {
 }
 
 /* Popup Orb Ring Spin Animations */
-@keyframes mondayOrbSpin1 {
+@keyframes aegisOrbSpin1 {
   from { transform: rotate(0deg); }
   to   { transform: rotate(360deg); }
 }
 
-@keyframes mondayOrbSpin2 {
+@keyframes aegisOrbSpin2 {
   from { transform: rotate(360deg); }
   to   { transform: rotate(0deg); }
 }

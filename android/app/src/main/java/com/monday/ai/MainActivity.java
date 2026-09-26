@@ -111,8 +111,8 @@ public class MainActivity extends BridgeActivity {
         String currentIp = prefs.getString("pc_ip", "10.250.173.50");
 
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("MONDAY AI - Server Connection");
-        builder.setMessage("Unable to reach PC server. Make sure your PC is running MONDAY and connected to the same Wi-Fi, or plugged in via USB.\n\nPC IP Address:");
+        builder.setTitle("AEGIS AI - Server Connection");
+        builder.setMessage("Unable to reach PC server. Make sure your PC is running AEGIS and connected to the same Wi-Fi, or plugged in via USB.\n\nPC IP Address:");
 
         final EditText input = new EditText(this);
         input.setText(currentIp);
@@ -142,7 +142,7 @@ public class MainActivity extends BridgeActivity {
     public void startOverlayService() {
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
-                Toast.makeText(this, "Please enable 'Allow display over other apps' for MONDAY AI", Toast.LENGTH_LONG).show();
+                Toast.makeText(this, "Please enable 'Allow display over other apps' for AEGIS AI", Toast.LENGTH_LONG).show();
                 Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:" + getPackageName()));
                 startActivity(intent);
             } else {

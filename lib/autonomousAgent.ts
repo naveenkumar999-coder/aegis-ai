@@ -133,7 +133,7 @@ export class AutonomousAgent {
     apiKey: string
   ): Promise<AutonomousResult | null> {
     try {
-      const systemPrompt = `You are MONDAY's Autonomous Script Synthesizer on Windows 10/11 x64.
+      const systemPrompt = `You are AEGIS's Autonomous Script Synthesizer on Windows 10/11 x64.
 The user gave directive: "${query}".
 Synthesize a safe, self-contained, working script (PowerShell preferred, or Node.js / Python) that executes this directive on Windows and writes clean, human-readable results to STDOUT.
 Output ONLY a JSON object with this format (no markdown fences, or wrapped in \`\`\`json):

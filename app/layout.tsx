@@ -2,13 +2,13 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "MONDAY Orb Voice AI & Floating Widget",
-  description: "Holographic 3D AI assistant with voice commands, task execution, gesture control, and mobile PWA support.",
+  title: "A.E.G.I.S. Orb Voice AI & Floating Widget",
+  description: "Autonomous Executive & General Intelligence System with voice commands, task execution, gesture control, and mobile PWA support.",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "MONDAY AI",
+    title: "AEGIS AI",
   },
 };
 

@@ -16,7 +16,7 @@ const MODE_LABEL: Record<TrackerStatus["mode"], string> = {
 
 export interface ChatMessage {
   id: string;
-  sender: "user" | "monday";
+  sender: "user" | "aegis" | "monday";
   text: string;
   toolName?: string;
   toolOutput?: string;
@@ -43,8 +43,8 @@ export default function JarvisOrb() {
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([
     {
       id: "welcome-init",
-      sender: "monday",
-      text: "Online and operational, Boss Nani. MONDAY neural core active. Standing by for your directive.",
+      sender: "aegis",
+      text: "Online and operational, Boss Nani. A.E.G.I.S. neural core active. Standing by for your directive.",
       timestamp: typeof window !== "undefined" ? new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "",
     },
   ]);
@@ -117,19 +117,32 @@ export default function JarvisOrb() {
   // Load saved API Key, Theme & Voice Mode from localStorage
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const savedKey = localStorage.getItem("monday_gemini_api_key") || localStorage.getItem("ultron_gemini_api_key") || "";
+      const savedKey =
+        localStorage.getItem("aegis_gemini_api_key") ||
+        localStorage.getItem("monday_gemini_api_key") ||
+        localStorage.getItem("ultron_gemini_api_key") ||
+        "";
       setGeminiApiKey(savedKey);
-      const savedTheme = localStorage.getItem("monday_theme_color") || "gold";
+      const savedTheme =
+        localStorage.getItem("aegis_theme_color") ||
+        localStorage.getItem("monday_theme_color") ||
+        "gold";
       setThemeColorState(savedTheme);
       document.body.setAttribute("data-theme", savedTheme);
-      const savedVoice = (localStorage.getItem("monday_voice_character") as "friday" | "ultron" | "jarvis") || "friday";
+      const savedVoice =
+        (localStorage.getItem("aegis_voice_character") as "friday" | "ultron" | "jarvis") ||
+        (localStorage.getItem("monday_voice_character") as "friday" | "ultron" | "jarvis") ||
+        "friday";
       setVoiceMode(savedVoice);
 
-      const savedEngine = localStorage.getItem("monday_use_core_audio");
+      const savedEngine =
+        localStorage.getItem("aegis_use_core_audio") ||
+        localStorage.getItem("monday_use_core_audio");
       if (savedEngine === "true") {
         setSpeechEngine("core");
       } else {
         setSpeechEngine("webspeech");
+        localStorage.setItem("aegis_use_core_audio", "false");
         localStorage.setItem("monday_use_core_audio", "false");
       }
 
@@ -155,6 +168,7 @@ export default function JarvisOrb() {
   const changeTheme = (newTheme: string) => {
     setThemeColorState(newTheme);
     if (typeof window !== "undefined") {
+      localStorage.setItem("aegis_theme_color", newTheme);
       localStorage.setItem("monday_theme_color", newTheme);
       document.body.setAttribute("data-theme", newTheme);
     }
@@ -165,6 +179,7 @@ export default function JarvisOrb() {
   const changeVoiceMode = (mode: "friday" | "ultron" | "jarvis") => {
     setVoiceMode(mode);
     if (typeof window !== "undefined") {
+      localStorage.setItem("aegis_voice_character", mode);
       localStorage.setItem("monday_voice_character", mode);
     }
     voiceRef.current?.setVoiceCharacter(mode);
@@ -173,6 +188,7 @@ export default function JarvisOrb() {
   const changeSttLang = (lang: "en-IN" | "en-US" | "en-GB") => {
     setSttLang(lang);
     if (typeof window !== "undefined") {
+      localStorage.setItem("aegis_stt_lang", lang);
       localStorage.setItem("monday_stt_lang", lang);
     }
     voiceRef.current?.setSttLanguage(lang);
@@ -181,6 +197,7 @@ export default function JarvisOrb() {
   const changeSpeechEngine = (engine: "core" | "webspeech") => {
     setSpeechEngine(engine);
     if (typeof window !== "undefined") {
+      localStorage.setItem("aegis_use_core_audio", engine === "core" ? "true" : "false");
       localStorage.setItem("monday_use_core_audio", engine === "core" ? "true" : "false");
     }
     voiceRef.current?.stopListening();
@@ -190,6 +207,7 @@ export default function JarvisOrb() {
   const saveApiKey = (key: string) => {
     setGeminiApiKey(key);
     if (typeof window !== "undefined") {
+      localStorage.setItem("aegis_gemini_api_key", key.trim());
       localStorage.setItem("monday_gemini_api_key", key.trim());
     }
     setShowSettings(false);
@@ -203,7 +221,10 @@ export default function JarvisOrb() {
       const scene = createOrbScene(container);
       sceneRef.current = scene;
 
-      const savedTheme = localStorage.getItem("monday_theme_color") || "gold";
+      const savedTheme =
+        localStorage.getItem("aegis_theme_color") ||
+        localStorage.getItem("monday_theme_color") ||
+        "gold";
       scene.setThemeColor(savedTheme);
       document.body.setAttribute("data-theme", savedTheme);
     } catch (err) {
@@ -244,14 +265,20 @@ export default function JarvisOrb() {
         setMicAudioLevel(level);
       },
     });
-    const savedVoice = (localStorage.getItem("monday_voice_character") as "friday" | "ultron" | "jarvis") || "friday";
-    const savedLang = (localStorage.getItem("monday_stt_lang") as "en-IN" | "en-US" | "en-GB") || "en-IN";
+    const savedVoice =
+      (localStorage.getItem("aegis_voice_character") as "friday" | "ultron" | "jarvis") ||
+      (localStorage.getItem("monday_voice_character") as "friday" | "ultron" | "jarvis") ||
+      "friday";
+    const savedLang =
+      (localStorage.getItem("aegis_stt_lang") as "en-IN" | "en-US" | "en-GB") ||
+      (localStorage.getItem("monday_stt_lang") as "en-IN" | "en-US" | "en-GB") ||
+      "en-IN";
     voice.setVoiceCharacter(savedVoice);
     voice.setSttLanguage(savedLang);
     setSttLang(savedLang);
     voiceRef.current = voice;
     setTimeout(() => {
-      voice.speak("Online and operational, Boss Nani. F.R.I.D.A.Y. AI active.");
+      voice.speak("Online and operational, Boss Nani. A.E.G.I.S. neural core active.");
     }, 600);
   }, []);
 
@@ -340,8 +367,8 @@ export default function JarvisOrb() {
         setChatHistory((prev) => [
           ...prev,
           {
-            id: "monday-" + Date.now(),
-            sender: "monday",
+            id: "aegis-" + Date.now(),
+            sender: "aegis",
             text: data.response,
             toolName: "Live Screen Vision & OCR Engine",
             toolOutput: data.response,
@@ -355,8 +382,8 @@ export default function JarvisOrb() {
         setChatHistory((prev) => [
           ...prev,
           {
-            id: "monday-" + Date.now(),
-            sender: "monday",
+            id: "aegis-" + Date.now(),
+            sender: "aegis",
             text: fallbackMsg,
             timestamp: timeStr,
           },
@@ -374,8 +401,8 @@ export default function JarvisOrb() {
         setChatHistory((prev) => [
           ...prev,
           {
-            id: "monday-" + Date.now(),
-            sender: "monday",
+            id: "aegis-" + Date.now(),
+            sender: "aegis",
             text,
             toolName: tool?.toolName,
             toolOutput: tool?.output,
@@ -389,8 +416,8 @@ export default function JarvisOrb() {
         setChatHistory((prev) => [
           ...prev,
           {
-            id: "monday-" + Date.now(),
-            sender: "monday",
+            id: "aegis-" + Date.now(),
+            sender: "aegis",
             text: errReply,
             timestamp: timeStr,
           },
@@ -479,10 +506,11 @@ export default function JarvisOrb() {
       sceneRef.current?.setAiState("idle");
     }
 
-    // Window & MONDAY UI management (Fullscreen, Maximize, Minimize, Restore)
+    // Window & AEGIS UI management (Fullscreen, Maximize, Minimize, Restore)
     const isSelfWindowCmd =
+      tool?.data?.target === "aegis" ||
       tool?.data?.target === "monday" ||
-      /\b(yourself|you|monday|ultron|orb|ui|interface)\b/i.test(queryText);
+      /\b(yourself|you|aegis|monday|ultron|orb|ui|interface)\b/i.test(queryText);
 
     if (isSelfWindowCmd && (tool?.data?.action || /\b(full\s*screen|fullscreen|maximize|minimise|minimize|restore|unmaximize)\b/i.test(queryText))) {
       const act = tool?.data?.action || (/\b(full\s*screen|fullscreen)\b/i.test(queryText) ? "fullscreen" : (/\b(minimize|minimise)\b/i.test(queryText) ? "minimize" : (/\b(restore|unmaximize)\b/i.test(queryText) ? "restore" : "maximize")));
@@ -504,16 +532,16 @@ export default function JarvisOrb() {
       }
     }
 
-    const mondayTimeStr = typeof window !== "undefined" ? new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "";
+    const aegisTimeStr = typeof window !== "undefined" ? new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "";
     setChatHistory((prev) => [
       ...prev,
       {
-        id: "monday-" + Date.now(),
-        sender: "monday",
+        id: "aegis-" + Date.now(),
+        sender: "aegis",
         text,
         toolName: tool?.toolName,
         toolOutput: tool?.output,
-        timestamp: mondayTimeStr,
+        timestamp: aegisTimeStr,
       },
     ]);
     setAiResponse(text);
@@ -648,7 +676,7 @@ export default function JarvisOrb() {
     try {
       const popup = window.open(
         popupUrl,
-        "MondayOverlay",
+        "AegisOverlay",
         `width=${popupWidth},height=${popupHeight},left=${left},top=${top},resizable=yes,scrollbars=no,status=no,toolbar=no,menubar=no`
       );
 
@@ -854,7 +882,7 @@ export default function JarvisOrb() {
 
           {/* Title Header */}
           <div className="hud hud-title">
-            M.O.N.D.A.Y.
+            A.E.G.I.S.
             {isPopupMode && <span style={{ fontSize: "9px", marginLeft: "6px", opacity: 0.7, color: "var(--theme-text-light)" }}>[POPUP]</span>}
           </div>
 
@@ -900,7 +928,7 @@ export default function JarvisOrb() {
               }}
             >
               <span className="state-dot" />
-              <span className="state-label">{isPopupMode ? aiState.toUpperCase() : `MONDAY: ${aiState.toUpperCase()}`}</span>
+              <span className="state-label">{isPopupMode ? aiState.toUpperCase() : `AEGIS: ${aiState.toUpperCase()}`}</span>
             </div>
           </div>
 
@@ -908,7 +936,7 @@ export default function JarvisOrb() {
           {showSettings && (
             <div className="settings-modal-backdrop" onClick={() => setShowSettings(false)}>
               <div className="settings-modal" onClick={(e) => e.stopPropagation()}>
-                <h3>⚙️ MONDAY AI Settings</h3>
+                <h3>⚙️ AEGIS AI Settings</h3>
                 <p>Enter your free Google Gemini API Key to enable unlimited dynamic AI question answering:</p>
                 <input
                   type="password"
@@ -920,7 +948,7 @@ export default function JarvisOrb() {
 
                 {/* Theme Color Selector Section */}
                 <div className="theme-picker-section">
-                  <h4>🎨 MONDAY THEME COLOR</h4>
+                  <h4>🎨 AEGIS THEME COLOR</h4>
                   <div className="theme-picker-row">
                     {THEME_OPTIONS.map((t) => (
                       <button
@@ -938,7 +966,7 @@ export default function JarvisOrb() {
 
                 {/* Voice Mode Selector Section */}
                 <div className="theme-picker-section">
-                  <h4>🔊 MONDAY VOICE SYNTHESIS CHARACTER</h4>
+                  <h4>🔊 AEGIS VOICE SYNTHESIS CHARACTER</h4>
                   <div className="theme-picker-row">
                     <button
                       type="button"
@@ -1064,7 +1092,7 @@ export default function JarvisOrb() {
               {chatHistory.map((msg) => (
                 <div key={msg.id} className={`speech-bubble ${msg.sender === "user" ? "user-bubble" : "ai-bubble"}`}>
                   <div className="bubble-header">
-                    <span className="bubble-label">{msg.sender === "user" ? "YOU:" : "MONDAY:"}</span>
+                    <span className="bubble-label">{msg.sender === "user" ? "YOU:" : "AEGIS:"}</span>
                     {msg.timestamp && <span className="bubble-time">{msg.timestamp}</span>}
                   </div>
                   <div className="bubble-content">{msg.text}</div>
@@ -1094,11 +1122,11 @@ export default function JarvisOrb() {
                 </div>
               )}
 
-              {/* MONDAY thinking status indicator */}
+              {/* AEGIS thinking status indicator */}
               {aiState === "thinking" && (
                 <div className="speech-bubble ai-bubble thinking-bubble">
                   <div className="bubble-header">
-                    <span className="bubble-label">MONDAY:</span>
+                    <span className="bubble-label">AEGIS:</span>
                   </div>
                   <div className="bubble-content thinking-content">
                     <span className="thinking-spinner">⚡</span> Processing neural query...
@@ -1123,7 +1151,7 @@ export default function JarvisOrb() {
               <input
                 type="text"
                 className="command-input"
-                placeholder="Ask MONDAY anything or type a command..."
+                placeholder="Ask AEGIS anything or type a command..."
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
               />

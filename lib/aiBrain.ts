@@ -122,7 +122,7 @@ export class AiBrain {
       else if (/\b(maximize|maximise)\b/i.test(q)) winAction = "maximize";
 
       let winTarget = "browser";
-      if (/\b(yourself|you|monday|ultron|orb|ui|interface)\b/i.test(q)) winTarget = "monday";
+      if (/\b(yourself|you|aegis|monday|ultron|orb|ui|interface)\b/i.test(q)) winTarget = "aegis";
       else if (/\b(notepad|notpad)\b/i.test(q)) winTarget = "notepad";
       else if (/\b(explorer|files|file\s+explorer|folder)\b/i.test(q)) winTarget = "files";
       else if (/\b(whatsapp|whats\s+app)\b/i.test(q)) winTarget = "whatsapp";
@@ -132,8 +132,8 @@ export class AiBrain {
       else if (/\b(window|this|current|active|screen|application|applications|app)\b/i.test(q)) winTarget = "active";
       else {
         const appExtract = q.replace(/can\s+you|please|now|make|the|in|on|to|for|full\s*screen|fullscreen|maximize|maximise|minimize|minimise|restore|unmaximize|window|app|application/gi, "").trim();
-        if (/\b(yourself|you|monday|ultron|orb|ui|interface)\b/i.test(appExtract)) {
-          winTarget = "monday";
+        if (/\b(yourself|you|aegis|monday|ultron|orb|ui|interface)\b/i.test(appExtract)) {
+          winTarget = "aegis";
         } else {
           winTarget = appExtract || "browser";
         }
@@ -916,7 +916,7 @@ export class AiBrain {
         const bridgeData = await bridgeRes.json();
         if (bridgeData.success) {
           return {
-            toolName: "MONDAY Bi-Directional Command Bridge",
+            toolName: "AEGIS Bi-Directional Command Bridge",
             output: `Cross-Device Signal Transmitted, Boss! Directive "${cleanQuery || query}" dispatched to execute on ${targetDevice.toUpperCase()}.`,
             data: { crossDevice: true, targetDevice },
           };
@@ -936,7 +936,7 @@ export class AiBrain {
         ? "Microphone listening deactivated, Boss!"
         : "Microphone listening activated, Boss!";
       return {
-        toolName: "MONDAY Neural Voice & Acoustic Controller",
+        toolName: "AEGIS Neural Voice & Acoustic Controller",
         output: reply,
         data: { action: nlp.entities.action, isStop },
       };
@@ -969,7 +969,7 @@ export class AiBrain {
     if (nlp.intent === "WINDOW_CONTROL") {
       const winAct = nlp.entities.action || "maximize";
       const winTarget = nlp.entities.target || "browser";
-      const fallbackTargetLabel = winTarget === "monday" ? "MONDAY interface" : winTarget;
+      const fallbackTargetLabel = (winTarget === "aegis" || winTarget === "monday") ? "AEGIS interface" : winTarget;
       try {
         const res = await fetch("/api/system-command", {
           method: "POST",
@@ -1095,11 +1095,11 @@ export class AiBrain {
       let fileName = "MONDAY_Directive.txt";
 
       if (q.includes("about your self") || q.includes("about yourself")) {
-        contentText = `================================================\nM.O.N.D.A.Y. CYBERNETIC NEURAL INTELLIGENCE\n================================================\n\nSystem Name: M.O.N.D.A.Y.\nArchitecture: Next.js 16 + Three.js 3D WebGL + MediaPipe AI + Voice Engine\nCreator Architecture: Sagar Tamang MONDAY Interface\n\nCORE CAPABILITIES:\n1. Desktop Execution Engine: Launches Notepad, Calculator, Explorer, Task Manager & System Tools.\n2. Voice Speech Recognition: Listens to speech commands in real-time.\n3. Authoritative Speech Synthesis: Speaks responses aloud with dynamic audio pitch modulation.\n4. 3D Holographic Audio Reactivity: Orb pulse colors (Cyan listening, Purple thinking, Red speaking, Gold idle).\n5. Webcam Vision Gesture Sensor: Tracks 21 hand landmarks for touchless 3D orb manipulation.\n6. Draggable Floating Mini-Orb: Compact widget mode for screen multitasking across PC & Mobile.\n\nStatus: ALL NEURAL CORES ONLINE AND OPERATIONAL.\n================================================`;
+        contentText = `================================================\nA.E.G.I.S. CYBERNETIC NEURAL INTELLIGENCE\n================================================\n\nSystem Name: A.E.G.I.S.\nArchitecture: Next.js 16 + Three.js 3D WebGL + MediaPipe AI + Voice Engine\nCreator Architecture: Sagar Tamang AEGIS Interface\n\nCORE CAPABILITIES:\n1. Desktop Execution Engine: Launches Notepad, Calculator, Explorer, Task Manager & System Tools.\n2. Voice Speech Recognition: Listens to speech commands in real-time.\n3. Authoritative Speech Synthesis: Speaks responses aloud with dynamic audio pitch modulation.\n4. 3D Holographic Audio Reactivity: Orb pulse colors (Cyan listening, Purple thinking, Red speaking, Gold idle).\n5. Webcam Vision Gesture Sensor: Tracks 21 hand landmarks for touchless 3D orb manipulation.\n6. Draggable Floating Mini-Orb: Compact widget mode for screen multitasking across PC & Mobile.\n\nStatus: ALL NEURAL CORES ONLINE AND OPERATIONAL.\n================================================`;
         fileName = "MONDAY_About.txt";
       } else {
         const extracted = q.replace(/type|write|in notepad|in notpad|in the notepad|in the notpad|on notepad|on notpad|for me|please/gi, "").trim();
-        contentText = `================================================\nMONDAY DESKTOP DIRECTIVE DOCUMENT\n================================================\n\nContent:\n${extracted || query}\n\nGenerated by MONDAY System Engine.`;
+        contentText = `================================================\nMONDAY DESKTOP DIRECTIVE DOCUMENT\n================================================\n\nContent:\n${extracted || query}\n\nGenerated by AEGIS System Engine.`;
         fileName = "MONDAY_Directive.txt";
       }
 
@@ -1237,7 +1237,7 @@ export class AiBrain {
       let lastCtx = getLastSearchContext() || AiBrain.lastSearchContext;
       if (!lastCtx && typeof window !== "undefined") {
         try {
-          const saved = localStorage.getItem("monday_last_search_context") || localStorage.getItem("monday_last_search");
+          const saved = localStorage.getItem("aegis_last_search_context") || localStorage.getItem("monday_last_search_context") || localStorage.getItem("aegis_last_search") || localStorage.getItem("monday_last_search");
           if (saved) lastCtx = JSON.parse(saved);
         } catch {}
       }
@@ -1349,7 +1349,7 @@ export class AiBrain {
         if (data.success) {
           return {
             toolName: "Comprehensive System Specs & Master User Profile Engine",
-            output: `MONDAY System Properties for Boss:\n${data.message}`,
+            output: `AEGIS System Properties for Boss:\n${data.message}`,
             data: { specs: data.specs },
           };
         }
@@ -1388,7 +1388,7 @@ export class AiBrain {
       let lastCtx = AiBrain.lastSearchContext;
       if (!lastCtx && typeof window !== "undefined") {
         try {
-          const saved = localStorage.getItem("monday_last_search");
+          const saved = localStorage.getItem("aegis_last_search") || localStorage.getItem("monday_last_search");
           if (saved) lastCtx = JSON.parse(saved);
         } catch {}
       }
@@ -1497,13 +1497,13 @@ export class AiBrain {
         };
         return {
           toolName: "Google Maps Route & Navigation Engine",
-          output: `MONDAY Directive Executed: ${data.message}`,
+          output: `AEGIS Directive Executed: ${data.message}`,
           data,
         };
       } catch (err) {
         return {
           toolName: "Google Maps Route & Navigation Engine",
-          output: `MONDAY Directive Executed: Opened route navigation to "${destination}" in ${browser.toUpperCase()} browser, Boss!`,
+          output: `AEGIS Directive Executed: Opened route navigation to "${destination}" in ${browser.toUpperCase()} browser, Boss!`,
         };
       }
     }
@@ -1536,8 +1536,8 @@ export class AiBrain {
         setLastSearchContext(AiBrain.lastSearchContext);
         if (typeof window !== "undefined") {
           try {
-            localStorage.setItem("monday_last_search", JSON.stringify(AiBrain.lastSearchContext));
-            localStorage.setItem("monday_last_search_context", JSON.stringify(AiBrain.lastSearchContext));
+            localStorage.setItem("aegis_last_search", JSON.stringify(AiBrain.lastSearchContext));
+            localStorage.setItem("aegis_last_search_context", JSON.stringify(AiBrain.lastSearchContext));
           } catch {}
         }
         const outputMsg = data.message || `Opened ${browser.toUpperCase()} Browser and searched for "${searchQuery}", Boss!`;
@@ -1668,7 +1668,7 @@ export class AiBrain {
         if (data.success) {
           return {
             toolName: "Comprehensive System Specs & Master User Profile Engine",
-            output: `MONDAY Diagnostics for Boss:\n${data.message}`,
+            output: `AEGIS Diagnostics for Boss:\n${data.message}`,
             data: { specs: data.specs },
           };
         }
@@ -1710,7 +1710,7 @@ export class AiBrain {
         if (data.success) {
           return {
             toolName: "Windows Active Applications & Running Tasks Inspector Engine",
-            output: `MONDAY PC Diagnostics:\n${data.message}`,
+            output: `AEGIS PC Diagnostics:\n${data.message}`,
             data: { apps: data.apps },
           };
         }
@@ -1765,7 +1765,7 @@ export class AiBrain {
           if (data.success) {
             return {
               toolName: "Windows Desktop Application Terminator Engine",
-              output: `MONDAY Directive Executed: ${data.message}`,
+              output: `AEGIS Directive Executed: ${data.message}`,
               data: { closed: targetApp },
             };
           }
@@ -1898,7 +1898,7 @@ export class AiBrain {
           };
           return {
             toolName: isRouteIntent ? "Google Maps Route & Navigation Engine" : "Universal App & Web Search Engine",
-            output: `MONDAY Directive Executed: ${data.message}`,
+            output: `AEGIS Directive Executed: ${data.message}`,
             data,
           };
         } catch (err) {
@@ -1929,7 +1929,7 @@ export class AiBrain {
           learningBrain.recordReward(query, "Picture Search Engine", 1.0);
           return {
             toolName: "Picture Search Engine",
-            output: `MONDAY Directive Executed: ${data.message}`,
+            output: `AEGIS Directive Executed: ${data.message}`,
             data,
           };
         }
@@ -1979,7 +1979,7 @@ export class AiBrain {
         if (data.success) {
           return {
             toolName: "Bluetooth Device Connection Engine",
-            output: `MONDAY Directive Executed: ${data.message}`,
+            output: `AEGIS Directive Executed: ${data.message}`,
             data: { action: "connect_bluetooth_device", deviceName: "TWS" },
           };
         }
@@ -2005,7 +2005,7 @@ export class AiBrain {
         if (data.success) {
           return {
             toolName: "Windows Wireless Hardware Control Engine",
-            output: `MONDAY Directive Executed: ${data.message}`,
+            output: `AEGIS Directive Executed: ${data.message}`,
             data: { action: "wireless_control", wifi: isWifi, bluetooth: isBt, mode },
           };
         }
@@ -2037,7 +2037,7 @@ export class AiBrain {
         if (data.success) {
           return {
             toolName: "Windows Power & System Control Engine",
-            output: `MONDAY Directive Executed: ${data.message}`,
+            output: `AEGIS Directive Executed: ${data.message}`,
             data: { action: "power_control" },
           };
         }
@@ -2179,12 +2179,12 @@ export class AiBrain {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MONDAY Full-Stack Cyber Portal</title>
+  <title>AEGIS Full-Stack Cyber Portal</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div className="container">
-    <h1>🚀 MONDAY Full-Stack App (Frontend + Backend + Database)</h1>
+    <h1>🚀 AEGIS Full-Stack App (Frontend + Backend + Database)</h1>
     <p>Powered by HTML5, CSS3, JavaScript, Node.js Express & SQLite Database</p>
     
     <div id="status" class="badge">Checking Backend Connection...</div>
@@ -2298,7 +2298,7 @@ app.post("/api/items", (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(\`🚀 MONDAY Backend API running at http://localhost:\${PORT}\`);
+  console.log(\`🚀 AEGIS Backend API running at http://localhost:\${PORT}\`);
 });`,
         },
         {
@@ -2324,7 +2324,7 @@ module.exports = db;`,
         },
         {
           name: "README.md",
-          content: `# MONDAY Full-Stack Project\n\nRun:\n\`\`\`bash\nnpm install express cors sqlite3\nnode server.js\n\`\`\`\nOpen index.html in your browser!`,
+          content: `# AEGIS Full-Stack Project\n\nRun:\n\`\`\`bash\nnpm install express cors sqlite3\nnode server.js\n\`\`\`\nOpen index.html in your browser!`,
         },
       ];
 
@@ -2342,7 +2342,7 @@ module.exports = db;`,
         if (data.success) {
           return {
             toolName: "Autonomous Full-Stack Project Builder",
-            output: `MONDAY Generated Full-Stack Codebase (Frontend HTML/CSS/JS + Backend Node Express + SQLite Database)! Folder opened at %TEMP%\\MONDAY_FullStack_Project`,
+            output: `AEGIS Generated Full-Stack Codebase (Frontend HTML/CSS/JS + Backend Node Express + SQLite Database)! Folder opened at %TEMP%\\MONDAY_FullStack_Project`,
             data: { project: "MONDAY_FullStack_Project" },
           };
         }
@@ -2379,7 +2379,7 @@ module.exports = db;`,
         if (data.success) {
           return {
             toolName: "Live Terminal Code Execution Engine",
-            output: `MONDAY Directive Executed: ${data.message}`,
+            output: `AEGIS Directive Executed: ${data.message}`,
             data: { stdout: data.stdout },
           };
         }
@@ -2424,7 +2424,7 @@ module.exports = db;`,
         if (data.success) {
           return {
             toolName: `${langName} Code Generation & Execution Engine`,
-            output: `MONDAY Synthesized ${langName} Code: Saved to "${fileName}" and opened on desktop!\n\n${codeText}`,
+            output: `AEGIS Synthesized ${langName} Code: Saved to "${fileName}" and opened on desktop!\n\n${codeText}`,
             data: { fileWritten: fileName, code: codeText, lang: langName },
           };
         }
@@ -2449,10 +2449,10 @@ module.exports = db;`,
       let fileName = "MONDAY_About.txt";
 
       if (q.includes("about your self") || q.includes("about yourself")) {
-        contentText = `================================================\nM.O.N.D.A.Y. CYBERNETIC NEURAL INTELLIGENCE\n================================================\n\nSystem Name: M.O.N.D.A.Y.\nArchitecture: Next.js 16 + Three.js 3D WebGL + MediaPipe AI + Voice Engine\nCreator Architecture: Sagar Tamang MONDAY Interface\n\nCORE CAPABILITIES:\n1. Desktop Execution Engine: Launches Notepad, Calculator, Explorer, Task Manager & System Tools.\n2. Voice Speech Recognition: Listens to speech commands in real-time.\n3. Authoritative Speech Synthesis: Speaks responses aloud with dynamic audio pitch modulation.\n4. 3D Holographic Audio Reactivity: Orb pulse colors (Cyan listening, Purple thinking, Red speaking, Gold idle).\n5. Webcam Vision Gesture Sensor: Tracks 21 hand landmarks for touchless 3D orb manipulation.\n6. Draggable Floating Mini-Orb: Compact widget mode for screen multitasking across PC & Mobile.\n\nStatus: ALL NEURAL CORES ONLINE AND OPERATIONAL.\n================================================`;
+        contentText = `================================================\nA.E.G.I.S. CYBERNETIC NEURAL INTELLIGENCE\n================================================\n\nSystem Name: A.E.G.I.S.\nArchitecture: Next.js 16 + Three.js 3D WebGL + MediaPipe AI + Voice Engine\nCreator Architecture: Sagar Tamang AEGIS Interface\n\nCORE CAPABILITIES:\n1. Desktop Execution Engine: Launches Notepad, Calculator, Explorer, Task Manager & System Tools.\n2. Voice Speech Recognition: Listens to speech commands in real-time.\n3. Authoritative Speech Synthesis: Speaks responses aloud with dynamic audio pitch modulation.\n4. 3D Holographic Audio Reactivity: Orb pulse colors (Cyan listening, Purple thinking, Red speaking, Gold idle).\n5. Webcam Vision Gesture Sensor: Tracks 21 hand landmarks for touchless 3D orb manipulation.\n6. Draggable Floating Mini-Orb: Compact widget mode for screen multitasking across PC & Mobile.\n\nStatus: ALL NEURAL CORES ONLINE AND OPERATIONAL.\n================================================`;
       } else {
         const extracted = q.replace(/type|write|in notepad|in notpad|in the notepad|in the notpad|on notepad|for me|please/gi, "").trim();
-        contentText = `================================================\nMONDAY DESKTOP DIRECTIVE DOCUMENT\n================================================\n\nContent:\n${extracted || query}\n\nGenerated by MONDAY System Engine.`;
+        contentText = `================================================\nMONDAY DESKTOP DIRECTIVE DOCUMENT\n================================================\n\nContent:\n${extracted || query}\n\nGenerated by AEGIS System Engine.`;
         fileName = "MONDAY_Directive.txt";
       }
 
@@ -2470,7 +2470,7 @@ module.exports = db;`,
         if (data.success) {
           return {
             toolName: "Notepad Document Writer Engine",
-            output: `MONDAY Directive Executed: ${data.message}`,
+            output: `AEGIS Directive Executed: ${data.message}`,
             data: { fileWritten: fileName },
           };
         }
@@ -2553,7 +2553,7 @@ module.exports = db;`,
           if (data.success) {
             return {
               toolName: "Windows Desktop Execution Engine",
-              output: `MONDAY Directive Executed: ${data.message}`,
+              output: `AEGIS Directive Executed: ${data.message}`,
               data: { launched: targetApp },
             };
           }
@@ -2591,7 +2591,7 @@ module.exports = db;`,
     ) {
       return {
         toolName: "System Capabilities Scan",
-        output: "MONDAY Cumulative System Capabilities: 1. Windows Power & System Control (Energy Saver, Battery, Sound, Display). 2. Link Retrieval & Direct Web Navigation Engine (YouTube, Google, GitHub, ChatGPT). 3. Multilingual Code Synthesis (Java, C++, C#, Python, JS, HTML, SQL). 4. Autonomous Full-Stack Project Builder (Frontend HTML/CSS/JS + Backend Node.js Express + SQLite Database). 5. Notepad Document Writer (.txt). 6. Windows PC Desktop App Execution (Notepad, WhatsApp, Settings, Clock, Camera, Calc, Explorer, Task Manager). 7. Voice Speech Recognition & Synthesis. 8. Draggable Floating Mini-Orb Widget. 9. 3D Holographic Audio Reactivity. 10. Webcam Hand Gesture Sensor. 11. Mobile PWA Installation.",
+        output: "AEGIS Cumulative System Capabilities: 1. Windows Power & System Control (Energy Saver, Battery, Sound, Display). 2. Link Retrieval & Direct Web Navigation Engine (YouTube, Google, GitHub, ChatGPT). 3. Multilingual Code Synthesis (Java, C++, C#, Python, JS, HTML, SQL). 4. Autonomous Full-Stack Project Builder (Frontend HTML/CSS/JS + Backend Node.js Express + SQLite Database). 5. Notepad Document Writer (.txt). 6. Windows PC Desktop App Execution (Notepad, WhatsApp, Settings, Clock, Camera, Calc, Explorer, Task Manager). 7. Voice Speech Recognition & Synthesis. 8. Draggable Floating Mini-Orb Widget. 9. 3D Holographic Audio Reactivity. 10. Webcam Hand Gesture Sensor. 11. Mobile PWA Installation.",
       };
     }
 
@@ -2632,7 +2632,7 @@ module.exports = db;`,
       const memUsage = (Math.random() * 2 + 4).toFixed(1);
       return {
         toolName: "System Diagnostics",
-        output: `MONDAY Cores: ONLINE (${coreLoad}% load). Memory: ${memUsage} GB / 16 GB. Quantum Neural Pipeline: 100% Nominal.`,
+        output: `AEGIS Cores: ONLINE (${coreLoad}% load). Memory: ${memUsage} GB / 16 GB. Quantum Neural Pipeline: 100% Nominal.`,
       };
     }
 
@@ -2683,13 +2683,13 @@ module.exports = db;`,
         const data = await res.json();
         return {
           toolName: "Universal App & Web Search Engine",
-          output: `MONDAY Directive Executed: ${data.message || "Opened browser and searched for " + searchTerm + ", Boss!"}`,
+          output: `AEGIS Directive Executed: ${data.message || "Opened browser and searched for " + searchTerm + ", Boss!"}`,
           data,
         };
       } catch (err) {
         return {
           toolName: "Universal App & Web Search Engine",
-          output: `MONDAY Directive Executed: Opened browser searching for "${searchTerm}", Boss!`,
+          output: `AEGIS Directive Executed: Opened browser searching for "${searchTerm}", Boss!`,
         };
       }
     }
@@ -2738,7 +2738,7 @@ module.exports = db;`,
     if (toolRes) {
       responseText = `${toolRes.output}`;
     } else {
-      responseText = `MONDAY neural core processed command: "${prompt}". Standing by.`;
+      responseText = `AEGIS neural core processed command: "${prompt}". Standing by.`;
     }
 
     return { text: responseText, tool: toolRes || undefined };

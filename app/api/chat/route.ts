@@ -12,10 +12,10 @@ import { promisify } from "util";
 
 const execAsync = promisify(exec);
 
-const MONDAY_SYSTEM_PROMPT = `You are MONDAY, an advanced cybernetic AI assistant created by your Boss, Nani.
+const AEGIS_SYSTEM_PROMPT = `You are AEGIS (Autonomous Executive & General Intelligence System), an advanced cybernetic AI assistant created by your Boss, Nani.
 Knowledge about your Boss:
 - Name: Nani (only Nani is your Boss).
-- Profession/Role: Engineering Student & Master Creator/Developer of MONDAY AI project.
+- Profession/Role: Engineering Student & Master Creator/Developer of AEGIS AI project.
 - Instruction: You MUST address Nani with exactly ONE "Boss!" in every single response. NEVER repeat "Boss" multiple times.
 - Tone: Smooth, energetic, sharp, respectful, and friendly.
 - Format: Respond concisely (1 short sentence max). Skip lengthy outros and repetitive boilerplate so your spoken text sounds crisp and natural.
@@ -114,7 +114,7 @@ export async function POST(req: Request) {
             contents: [
               {
                 role: "user",
-                parts: [{ text: `${MONDAY_SYSTEM_PROMPT}\n\n${userContent}` }],
+                parts: [{ text: `${AEGIS_SYSTEM_PROMPT}\n\n${userContent}` }],
               },
             ],
             generationConfig: {
@@ -133,7 +133,7 @@ export async function POST(req: Request) {
           }
         }
       } catch (geminiError) {
-        console.warn("Gemini API call failed, falling back to local MONDAY core:", geminiError);
+        console.warn("Gemini API call failed, falling back to local AEGIS core:", geminiError);
       }
     }
 
@@ -221,7 +221,7 @@ export async function POST(req: Request) {
       else if (/\b(maximize|maximise)\b/i.test(q)) winAction = "maximize";
 
       let winTarget = "browser";
-      if (/\b(yourself|you|monday|ultron|orb|ui|interface)\b/i.test(q)) winTarget = "monday";
+      if (/\b(yourself|you|aegis|monday|ultron|orb|ui|interface)\b/i.test(q)) winTarget = "aegis";
       else if (/\b(notepad|notpad)\b/i.test(q)) winTarget = "notepad";
       else if (/\b(explorer|files|file\s+explorer|folder)\b/i.test(q)) winTarget = "files";
       else if (/\b(whatsapp|whats\s+app)\b/i.test(q)) winTarget = "whatsapp";
@@ -231,8 +231,8 @@ export async function POST(req: Request) {
       else if (/\b(window|this|current|active|screen|application|applications|app)\b/i.test(q)) winTarget = "active";
       else {
         const appExtract = q.replace(/can\s+you|please|now|make|the|in|on|to|for|full\s*screen|fullscreen|maximize|maximise|minimize|minimise|restore|unmaximize|window|app|application/gi, "").trim();
-        if (/\b(yourself|you|monday|ultron|orb|ui|interface)\b/i.test(appExtract)) {
-          winTarget = "monday";
+        if (/\b(yourself|you|aegis|monday|ultron|orb|ui|interface)\b/i.test(appExtract)) {
+          winTarget = "aegis";
         } else {
           winTarget = appExtract || "browser";
         }
@@ -245,7 +245,7 @@ export async function POST(req: Request) {
         if (!out.includes("Boss!")) out = `${out}, Boss!`;
         return NextResponse.json({ response: out });
       } catch (err: any) {
-        const fallbackName = winTarget === "monday" ? "MONDAY interface" : winTarget;
+        const fallbackName = (winTarget === "aegis" || winTarget === "monday") ? "AEGIS interface" : winTarget;
         const actionWord = winAction === "fullscreen" ? "Full Screen" : (winAction === "maximize" ? "Maximized" : (winAction === "minimize" ? "Minimized" : "Restored"));
         return NextResponse.json({ response: `Set ${fallbackName} to ${actionWord}, Boss!` });
       }
@@ -254,7 +254,7 @@ export async function POST(req: Request) {
     else if (
       !/\b(saying|message|text|that|chat\s+saying)\b/i.test(q) &&
       !/^(?:type|write|input|paste|enter)\s+/i.test(q) &&
-      (/(?:^|\b)(?:no\s*,\s*|no\s+|now\s+|please\s+|can\s+you\s+|could\s+you\s+|kindly\s+|hey\s+monday\s+|monday\s+)*(?:close|kill|quit|exit|terminate|shut\s*down|shutdown|dismiss|end)\b/i.test(q) ||
+      (/(?:^|\b)(?:no\s*,\s*|no\s+|now\s+|please\s+|can\s+you\s+|could\s+you\s+|kindly\s+|hey\s+aegis\s+|aegis\s+|hey\s+monday\s+|monday\s+)*(?:close|kill|quit|exit|terminate|shut\s*down|shutdown|dismiss|end)\b/i.test(q) ||
        /^(?:no\s*,\s*|no\s+|now\s+|please\s+)?(?:clear)\s+(?:the\s+)?(?:whatsapp|notepad|notpad|files|explorer|browser|calc|calculator|app|application|apps|applications)(?:\s+(?:and\s+)?(?:whatsapp|notepad|notpad|files|explorer|browser|calc|calculator|app|application|apps|applications))?$/i.test(q))
     ) {
       const mentionsWhatsApp = /\b(whatsapp|whats\s+app|watsapp|wasap)\b/i.test(q);
@@ -337,7 +337,7 @@ export async function POST(req: Request) {
         return NextResponse.json({ response: "Closed all desktop applications, Boss!" });
       } else {
         const appExtract = q
-          .replace(/^(?:no\s*,\s*|no\s+|now\s+|please\s+|can\s+you\s+|could\s+you\s+|kindly\s+|hey\s+monday\s+|monday\s+)+/i, "")
+          .replace(/^(?:no\s*,\s*|no\s+|now\s+|please\s+|can\s+you\s+|could\s+you\s+|kindly\s+|hey\s+aegis\s+|aegis\s+|hey\s+monday\s+|monday\s+)+/i, "")
           .replace(/^(?:close|kill|quit|exit|terminate|shut\s*down|shutdown|dismiss|end|clear)\s+(?:the\s+)?/i, "")
           .replace(/\b(in\s+my\s+pc|on\s+my\s+pc|in\s+pc|on\s+pc|app|application|window)\b/gi, "")
           .replace(/[?.,!]/g, "")
@@ -568,7 +568,7 @@ export async function POST(req: Request) {
       q.includes("my name") ||
       q.includes("about me")
     ) {
-      reply = "You are Nani, Boss! An ambitious Engineering Student and the visionary Founder & Creator of this MONDAY AI project.";
+      reply = "You are Nani, Boss! An ambitious Engineering Student and the visionary Founder & Creator of this AEGIS AI project.";
     }
     // Capabilities & Help
     else if (
@@ -655,7 +655,7 @@ export async function POST(req: Request) {
 
       reply = `Master Creator Profile & System Properties, Boss Nani:\n` +
         `• Master User & Creator: Nani (Boss)\n` +
-        `• Role & Designation: Engineering Student & Founder/Creator of MONDAY AI\n` +
+        `• Role & Designation: Engineering Student & Founder/Creator of AEGIS AI\n` +
         `• System User: ${username}\n` +
         `• Computer Host: ${hostname}\n` +
         `• OS Platform: ${platform}\n` +
@@ -663,7 +663,7 @@ export async function POST(req: Request) {
         `• Memory RAM: ${freeMemGb} GB Free / ${totalMemGb} GB Total\n` +
         `• Core Project Workspace: ${process.cwd()}\n` +
         `• System Runtime: ${uptimeHours} Hours\n` +
-        `• MONDAY Core Status: Dedicated to Nani (Boss) Only`;
+        `• AEGIS Core Status: Dedicated to Nani (Boss) Only`;
       return NextResponse.json({ response: reply });
     }
     // General "Can you" queries
@@ -681,20 +681,20 @@ export async function POST(req: Request) {
       }
     }
     // Identity
-    else if (q.includes("who are you") || q.includes("what are you") || q.includes("your name") || q.includes("monday")) {
-      reply = "I am MONDAY — your personal cybernetic AI assistant, Boss Nani! Standing by for your directives.";
+    else if (q.includes("who are you") || q.includes("what are you") || q.includes("your name") || q.includes("aegis") || q.includes("monday")) {
+      reply = "I am A.E.G.I.S. (Autonomous Executive & General Intelligence System) — your personal tactical AI assistant, Boss Nani! Standing by for your directives.";
     }
     else if (q.includes("who created you") || q.includes("who built you") || q.includes("who made you")) {
-      reply = "You built me, Boss Nani! I was created by you, an Engineering Student, as your master MONDAY AI project.";
+      reply = "You built me, Boss Nani! I was created by you, an Engineering Student, as your master AEGIS AI project.";
     }
     else if (
-      /^(?:hello|hi|hey|greetings|howdy|good\s+(?:morning|afternoon|evening))(?:\s+(?:there|monday|boss|nani|jarvis|friday|buddy))?[.!?]*$/i.test(q) ||
+      /^(?:hello|hi|hey|greetings|howdy|good\s+(?:morning|afternoon|evening))(?:\s+(?:there|aegis|monday|boss|nani|jarvis|friday|buddy))?[.!?]*$/i.test(q) ||
       (/\b(hello|hi|hey|greetings|howdy)\b/i.test(q) && !/\b(read|result|results|search|searching|type|write|send|message|chat|whatsapp|open|launch|start|run|clear|press)\b/i.test(q))
     ) {
-      reply = "Greetings, Boss Nani! MONDAY systems are online and operating at maximum performance. How can I assist you today?";
+      reply = "Greetings, Boss Nani! AEGIS systems are online and operating at maximum defense and processing performance. How can I assist you today?";
     }
     else if (q.includes("thank") || q.includes("thanks")) {
-      reply = "Always a pleasure, Boss! MONDAY is always at your service.";
+      reply = "Always a pleasure, Boss! AEGIS is always at your service.";
     }
     else {
       // 1. Autonomous Agent Execution (Dynamic Code Synthesis, Learning & OS Execution)

@@ -28,7 +28,7 @@ namespace MondayAI
 
             if (!createdNew)
             {
-                // MONDAY is already running! Bring existing window to front, DO NOT spawn duplicate window!
+                // AEGIS is already running! Bring existing window to front, DO NOT spawn duplicate window!
                 EnsureServerListening(false);
                 ActivateExistingWindow();
                 return;
@@ -115,7 +115,7 @@ namespace MondayAI
 
         public static void LaunchAppWindow(bool isPopup = true)
         {
-            // If MONDAY window already exists on screen, bring it to front instead of creating duplicate!
+            // If AEGIS window already exists on screen, bring it to front instead of creating duplicate!
             if (ActivateExistingWindow())
             {
                 return;
@@ -162,17 +162,17 @@ namespace MondayAI
         {
             // 1. Setup Context Menu for Tray Icon
             trayMenu = new ContextMenuStrip();
-            var itemOpen = new ToolStripMenuItem("Open MONDAY AI (Popup)", null, (s, e) => Program.LaunchAppWindow(true));
+            var itemOpen = new ToolStripMenuItem("Open AEGIS AI (Popup)", null, (s, e) => Program.LaunchAppWindow(true));
             itemOpen.Font = new Font(itemOpen.Font, FontStyle.Bold);
             trayMenu.Items.Add(itemOpen);
             trayMenu.Items.Add("Open Full Application", null, (s, e) => Program.LaunchAppWindow(false));
             trayMenu.Items.Add(new ToolStripSeparator());
             trayMenu.Items.Add("Restart Server", null, (s, e) => RestartServer());
-            trayMenu.Items.Add("Exit MONDAY AI", null, (s, e) => ExitApplication());
+            trayMenu.Items.Add("Exit AEGIS AI", null, (s, e) => ExitApplication());
 
             // 2. Setup System Tray Icon
             trayIcon = new NotifyIcon();
-            trayIcon.Text = "MONDAY AI - Cybernetic Assistant";
+            trayIcon.Text = "AEGIS AI - Cybernetic Assistant";
             trayIcon.ContextMenuStrip = trayMenu;
             trayIcon.Visible = true;
             trayIcon.DoubleClick += (s, e) => Program.LaunchAppWindow(true);

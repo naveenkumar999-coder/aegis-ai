@@ -63,7 +63,7 @@ function createWindow() {
     height: isPopup ? 620 : 900,
     minWidth: 360,
     minHeight: 480,
-    title: "MONDAY AI - Cybernetic Assistant",
+    title: "AEGIS AI - Cybernetic Assistant",
     backgroundColor: "#050508",
     show: false,
     frame: true,
@@ -111,7 +111,7 @@ function createWindow() {
           height: 640,
           alwaysOnTop: true,
           autoHideMenuBar: true,
-          title: "MONDAY AI - OS Overlay",
+          title: "AEGIS AI - OS Overlay",
           backgroundColor: "#050508",
           webPreferences: {
             nodeIntegration: false,
@@ -143,7 +143,7 @@ function createTray() {
   // Use a default tray menu
   const contextMenu = Menu.buildFromTemplate([
     {
-      label: "Open MONDAY AI",
+      label: "Open AEGIS AI",
       click: () => {
         if (mainWindow) {
           mainWindow.show();
@@ -153,7 +153,7 @@ function createTray() {
     },
     { type: "separator" },
     {
-      label: "Exit MONDAY",
+      label: "Exit AEGIS",
       click: () => {
         isQuitting = true;
         app.quit();
@@ -164,7 +164,7 @@ function createTray() {
   try {
     const iconPath = path.join(__dirname, "..", "public", "favicon.ico");
     tray = new Tray(iconPath);
-    tray.setToolTip("MONDAY AI - Cybernetic Intelligence");
+    tray.setToolTip("AEGIS AI - Cybernetic Intelligence");
     tray.setContextMenu(contextMenu);
     tray.on("double-click", () => {
       if (mainWindow) {
@@ -196,7 +196,7 @@ if (!gotTheLock) {
       app.setLoginItemSettings({
         openAtLogin: true,
         openAsHidden: false,
-        name: "MONDAY AI",
+        name: "AEGIS AI",
       });
     } catch (e) {
       console.warn("Failed to set login item:", e);

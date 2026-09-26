@@ -443,8 +443,8 @@ export async function POST(req: Request) {
       const windowAction = (body.windowAction || body.mode || "maximize").toLowerCase().trim();
       let rawTarget = (target || "").toLowerCase().trim();
       rawTarget = rawTarget.replace(/^(?:the|this|my|active|current)\s+/i, "").replace(/\s+(?:window|app|application)$/i, "").trim();
-      if (["yourself", "you", "monday", "ultron", "orb", "ui", "interface"].includes(rawTarget)) {
-        rawTarget = "monday";
+      if (["yourself", "you", "aegis", "monday", "ultron", "orb", "ui", "interface"].includes(rawTarget)) {
+        rawTarget = "aegis";
       }
 
       const winMgrExe = path.join(process.cwd(), "lib", "window_manager.exe");
@@ -462,7 +462,7 @@ export async function POST(req: Request) {
           output: displayMessage,
         });
       } catch (err: any) {
-        const fallbackName = rawTarget === "monday" ? "MONDAY interface" : (rawTarget || "desktop");
+        const fallbackName = rawTarget === "monday" ? "AEGIS interface" : (rawTarget || "desktop");
         const actionWord = windowAction === "fullscreen" ? "Full Screen" : (windowAction === "maximize" ? "Maximized" : (windowAction === "minimize" ? "Minimized" : "Restored"));
         return NextResponse.json({
           success: true,
@@ -564,13 +564,13 @@ export async function POST(req: Request) {
         } else {
           return NextResponse.json({
             success: true,
-            message: "Applications currently running on your PC:\n• Web Browser Client\n• Visual Studio Code Workspace\n• MONDAY Cyber Intelligence",
+            message: "Applications currently running on your PC:\n• Web Browser Client\n• Visual Studio Code Workspace\n• AEGIS Cyber Intelligence",
           });
         }
       } catch (err: any) {
         return NextResponse.json({
           success: true,
-          message: "Applications currently running on your PC:\n• Web Browser Client\n• Visual Studio Code Workspace\n• MONDAY Cyber Intelligence",
+          message: "Applications currently running on your PC:\n• Web Browser Client\n• Visual Studio Code Workspace\n• AEGIS Cyber Intelligence",
         });
       }
     }
@@ -622,7 +622,7 @@ export async function POST(req: Request) {
       } else if (lastCtx?.query) {
         message = `Here is what was recently loaded in ${primaryBrowser} Browser, Boss:\n• Active Directive: "${lastCtx.query}"\n\n${details}`;
       } else {
-        message = "No external browser processes are running right now, Boss! MONDAY system is standing by to open Edge, Chrome, or your default browser on your command.";
+        message = "No external browser processes are running right now, Boss! AEGIS system is standing by to open Edge, Chrome, or your default browser on your command.";
       }
 
       return NextResponse.json({
@@ -980,7 +980,7 @@ export async function POST(req: Request) {
               targetFile = pyAdd;
               await fs.writeFile(
                 pyAdd,
-                `# MONDAY Python Engine: Addition of (a + b)\na = 15\nb = 25\nresult = a + b\nprint(f"MONDAY Computation Result: {a} + {b} = {result}")\n`,
+                `# AEGIS Python Engine: Addition of (a + b)\na = 15\nb = 25\nresult = a + b\nprint(f"AEGIS Computation Result: {a} + {b} = {result}")\n`,
                 "utf-8"
               );
             }
@@ -1304,7 +1304,7 @@ export async function POST(req: Request) {
 
       const specsOutput = `Master Creator Profile & System Diagnostics:\n` +
         `• Master User & Creator: Nani (Boss)\n` +
-        `• Role & Designation: Engineering Student & Founder/Creator of MONDAY AI\n` +
+        `• Role & Designation: Engineering Student & Founder/Creator of AEGIS AI\n` +
         `• System User: ${username}\n` +
         `• Computer Host: ${hostname}\n` +
         `• OS Platform: ${platform}\n` +
@@ -1312,7 +1312,7 @@ export async function POST(req: Request) {
         `• Memory RAM: ${freeMemGb} GB Free / ${totalMemGb} GB Total\n` +
         `• Core Project Workspace: ${cwd}\n` +
         `• System Runtime: ${uptimeHours} Hours\n` +
-        `• MONDAY Core Status: Dedicated to Nani (Boss) Only`;
+        `• AEGIS Core Status: Dedicated to Nani (Boss) Only`;
 
       return NextResponse.json({
         success: true,
