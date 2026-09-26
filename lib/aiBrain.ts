@@ -919,6 +919,12 @@ export class AiBrain {
     if (targetDevice && targetDevice !== detectedCurrentDevice) {
       // 1. Instant direct LAN dispatch to PC if mobile targeting PC on local Wi-Fi
       if (targetDevice === "pc" && typeof window !== "undefined") {
+        const isClose = /\b(close|kill|quit|exit|terminate|shut\s*down|shutdown|dismiss|end|stop|clear)\b/i.test(cleanQuery || query);
+        const action = isClose ? "close_app" : "launch_app";
+        let target = cleanQuery || query;
+        if (isClose) {
+          target = target.replace(/^(?:close|kill|quit|exit|terminate|shut\s*down|shutdown|dismiss|end|stop|clear)\s+(?:the\s+)?/i, "").trim();
+        }
         const savedPcIp = localStorage.getItem("aegis_pc_ip") || "192.168.0.124";
         const pcCandidates = [`http://${savedPcIp}:3000`, "http://192.168.0.124:3000", "http://localhost:3000"];
         for (const candidate of pcCandidates) {
@@ -928,7 +934,7 @@ export class AiBrain {
             fetch(`${candidate}/api/system-command`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ action: "launch_app", target: cleanQuery || query }),
+              body: JSON.stringify({ action, target }),
               signal: controller.signal,
             }).catch(() => {});
           } catch (e) {}
