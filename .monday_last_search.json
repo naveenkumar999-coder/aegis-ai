@@ -1,8 +1,7 @@
 {
-  "type": "url",
-  "query": "https://www.youtube.com",
-  "destination": "https://www.youtube.com",
-  "platform": "web",
+  "type": "geeksforgeeks",
+  "query": "greeksforgreeks",
+  "platform": "geeksforgeeks",
   "bName": "brave",
-  "timestamp": 1790406214356
+  "timestamp": 1790406509659
 }

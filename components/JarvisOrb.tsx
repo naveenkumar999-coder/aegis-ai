@@ -575,6 +575,32 @@ export default function JarvisOrb() {
     }
   };
 
+  // Expose sendAegisQuery globally for native Android Overlay / external callers
+  const handleUserQueryRef = useRef(handleUserQuery);
+  useEffect(() => {
+    handleUserQueryRef.current = handleUserQuery;
+  });
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      (window as any).sendAegisQuery = (q: string) => {
+        if (q && typeof q === "string") {
+          handleUserQueryRef.current(q);
+        }
+      };
+      if ((window as any)._pendingAegisQuery) {
+        const pending = (window as any)._pendingAegisQuery;
+        delete (window as any)._pendingAegisQuery;
+        handleUserQueryRef.current(pending);
+      }
+    }
+    return () => {
+      if (typeof window !== "undefined") {
+        delete (window as any).sendAegisQuery;
+      }
+    };
+  }, []);
+
   // 4. Real-Time Cross-Device Command Bridge Listener (PC ↔ Mobile)
   useEffect(() => {
     const interval = setInterval(async () => {

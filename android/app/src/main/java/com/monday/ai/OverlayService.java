@@ -23,7 +23,10 @@ import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
+import android.view.inputmethod.EditorInfo;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -42,6 +45,7 @@ public class OverlayService extends Service {
 
     private FrameLayout circleView;
     private LinearLayout cardView;
+    private EditText textInputField;
 
     private int initialX;
     private int initialY;
@@ -157,17 +161,85 @@ public class OverlayService extends Service {
         LinearLayout.LayoutParams titleParams = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f);
         header.addView(title, titleParams);
 
-        // Close / Turn Off Header Button (✕)
+        // Close / Minimize Header Button (✕ HIDE - returns to normal floating orb)
         TextView closeHeaderBtn = new TextView(this);
         closeHeaderBtn.setText(" ✕ HIDE ");
-        closeHeaderBtn.setTextColor(Color.parseColor("#ff3b30"));
+        closeHeaderBtn.setTextColor(Color.parseColor("#ffaa30"));
         closeHeaderBtn.setTextSize(11);
         closeHeaderBtn.setTypeface(null, android.graphics.Typeface.BOLD);
         closeHeaderBtn.setPadding(dpToPx(6), dpToPx(3), dpToPx(6), dpToPx(3));
-        closeHeaderBtn.setOnClickListener(v -> stopOverlaySelf());
+        closeHeaderBtn.setOnClickListener(v -> toggleExpand());
         header.addView(closeHeaderBtn);
 
         cardView.addView(header);
+
+        // Text Input Row
+        LinearLayout inputRow = new LinearLayout(this);
+        inputRow.setOrientation(LinearLayout.HORIZONTAL);
+        inputRow.setGravity(Gravity.CENTER_VERTICAL);
+        LinearLayout.LayoutParams inputRowParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        inputRowParams.setMargins(0, 0, 0, dpToPx(8));
+        inputRow.setLayoutParams(inputRowParams);
+
+        textInputField = new EditText(this);
+        textInputField.setHint("Type message or command...");
+        textInputField.setHintTextColor(Color.parseColor("#88ffaa30"));
+        textInputField.setTextColor(Color.WHITE);
+        textInputField.setTextSize(11);
+        textInputField.setSingleLine(true);
+        textInputField.setImeOptions(EditorInfo.IME_ACTION_SEND);
+        textInputField.setPadding(dpToPx(8), dpToPx(6), dpToPx(8), dpToPx(6));
+
+        GradientDrawable inputBg = new GradientDrawable();
+        inputBg.setColor(Color.parseColor("#22ffffff"));
+        inputBg.setCornerRadius(dpToPx(8));
+        inputBg.setStroke(dpToPx(1), Color.parseColor("#ffaa30"));
+        textInputField.setBackground(inputBg);
+
+        LinearLayout.LayoutParams inputLp = new LinearLayout.LayoutParams(0, dpToPx(34), 1.0f);
+        inputLp.setMargins(0, 0, dpToPx(4), 0);
+        textInputField.setLayoutParams(inputLp);
+
+        Button sendBtn = new Button(this);
+        sendBtn.setText("⚡ SEND");
+        sendBtn.setTextColor(Color.WHITE);
+        sendBtn.setTextSize(10);
+        sendBtn.setTypeface(null, android.graphics.Typeface.BOLD);
+        sendBtn.setPadding(dpToPx(6), 0, dpToPx(6), 0);
+
+        GradientDrawable sendBg = new GradientDrawable();
+        sendBg.setColor(Color.parseColor("#44ffaa30"));
+        sendBg.setCornerRadius(dpToPx(8));
+        sendBg.setStroke(dpToPx(1), Color.parseColor("#ffaa30"));
+        sendBtn.setBackground(sendBg);
+
+        LinearLayout.LayoutParams sendLp = new LinearLayout.LayoutParams(dpToPx(64), dpToPx(34));
+        sendBtn.setLayoutParams(sendLp);
+
+        sendBtn.setOnClickListener(v -> {
+            if (textInputField != null) {
+                String query = textInputField.getText().toString().trim();
+                if (!query.isEmpty()) {
+                    handleTextSubmit(query);
+                    textInputField.setText("");
+                }
+            }
+        });
+
+        textInputField.setOnEditorActionListener((tv, actionId, event) -> {
+            if (actionId == EditorInfo.IME_ACTION_SEND || actionId == EditorInfo.IME_ACTION_DONE) {
+                sendBtn.performClick();
+                return true;
+            }
+            return false;
+        });
+
+        inputRow.addView(textInputField);
+        inputRow.addView(sendBtn);
+        cardView.addView(inputRow);
 
         // Action Buttons Row
         LinearLayout actionsRow = new LinearLayout(this);
@@ -193,7 +265,7 @@ public class OverlayService extends Service {
         openAppBtn.setOnClickListener(v -> launchApp("com.monday.ai"));
         cardView.addView(openAppBtn);
 
-        // Explicit TURN OFF OVERLAY Button
+        // Explicit TURN OFF OVERLAY Button (stops overlay service completely)
         Button turnOffBtn = createStyledButton("🔴 TURN OFF OVERLAY", "#ff3b30");
         turnOffBtn.setOnClickListener(v -> stopOverlaySelf());
         cardView.addView(turnOffBtn);
@@ -273,10 +345,46 @@ public class OverlayService extends Service {
         if (isExpanded) {
             circleView.setVisibility(View.GONE);
             cardView.setVisibility(View.VISIBLE);
+            // Allow focus and soft keyboard for textInputField in popup card
+            params.flags = WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL | WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH;
+            if (windowManager != null && overlayView != null) {
+                windowManager.updateViewLayout(overlayView, params);
+            }
         } else {
+            // Dismiss soft keyboard when minimizing back to normal orb
+            if (textInputField != null) {
+                InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+                if (imm != null) {
+                    imm.hideSoftInputFromWindow(textInputField.getWindowToken(), 0);
+                }
+                textInputField.clearFocus();
+            }
             cardView.setVisibility(View.GONE);
             circleView.setVisibility(View.VISIBLE);
+            // Re-apply FLAG_NOT_FOCUSABLE so touches pass through around the orb
+            params.flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE;
+            if (windowManager != null && overlayView != null) {
+                windowManager.updateViewLayout(overlayView, params);
+            }
         }
+    }
+
+    private void handleTextSubmit(String query) {
+        if (query == null || query.trim().isEmpty()) return;
+        String q = query.trim();
+        try {
+            Intent intent = getPackageManager().getLaunchIntentForPackage("com.monday.ai");
+            if (intent == null) {
+                intent = new Intent(this, MainActivity.class);
+            }
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+            intent.putExtra("user_query", q);
+            startActivity(intent);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        Toast.makeText(this, "Directive: " + q, Toast.LENGTH_SHORT).show();
+        toggleExpand();
     }
 
     private void stopOverlaySelf() {

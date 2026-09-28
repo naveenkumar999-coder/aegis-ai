@@ -40,6 +40,36 @@ public class MainActivity extends BridgeActivity {
         registerBridge();
         startOverlayService();
         checkServerAndConnect();
+        handleIncomingIntent(getIntent());
+    }
+
+    @Override
+    public void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        handleIncomingIntent(intent);
+    }
+
+    private void handleIncomingIntent(Intent intent) {
+        if (intent != null && intent.hasExtra("user_query")) {
+            String q = intent.getStringExtra("user_query");
+            if (q != null && !q.trim().isEmpty()) {
+                sendQueryToWebView(q.trim());
+            }
+        }
+    }
+
+    public void sendQueryToWebView(String query) {
+        runOnUiThread(() -> {
+            if (bridge != null && bridge.getWebView() != null) {
+                String escaped = query.replace("\\", "\\\\").replace("'", "\\'").replace("\n", " ");
+                bridge.getWebView().evaluateJavascript(
+                    "if (window.sendAegisQuery) { window.sendAegisQuery('" + escaped + "'); } " +
+                    "else { window._pendingAegisQuery = '" + escaped + "'; }",
+                    null
+                );
+            }
+        });
     }
 
     @Override
