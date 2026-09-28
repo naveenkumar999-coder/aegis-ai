@@ -632,30 +632,32 @@ body {
 .settings-modal-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 100;
-  background: rgba(0, 0, 0, 0.8);
+  z-index: 99999;
+  background: rgba(0, 0, 0, 0.85);
   backdrop-filter: blur(8px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
-  overflow-y: auto;
+  display: block;
+  padding: 30px 16px 80px 16px;
+  overflow-y: scroll !important;
+  -webkit-overflow-scrolling: touch !important;
+  touch-action: pan-y !important;
+  pointer-events: auto !important;
+  box-sizing: border-box;
 }
 
 .settings-modal {
-  width: 92%;
-  max-width: 500px;
-  max-height: 85vh;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  background: rgba(15, 10, 15, 0.95);
-  border: 1px solid var(--theme-color-glow);
-  border-radius: 12px;
-  padding: 22px 20px;
-  box-shadow: 0 0 35px var(--theme-color-glow);
+  width: 100%;
+  max-width: 520px;
+  margin: 0 auto 60px auto !important;
+  background: rgba(15, 10, 15, 0.98);
+  border: 1.5px solid var(--theme-color-glow);
+  border-radius: 14px;
+  padding: 24px 20px 30px 20px;
+  box-shadow: 0 0 45px var(--theme-color-glow);
   color: var(--theme-color);
   font-family: "Courier New", monospace;
-  scrollbar-width: thin;
+  touch-action: pan-y !important;
+  pointer-events: auto !important;
+  box-sizing: border-box;
 }
 
 .settings-modal h3 {

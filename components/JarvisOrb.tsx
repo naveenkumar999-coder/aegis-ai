@@ -83,6 +83,8 @@ export default function JarvisOrb() {
   const [speechEngine, setSpeechEngine] = useState<"core" | "webspeech">("webspeech");
   const [micAudioLevel, setMicAudioLevel] = useState<number>(0);
   const [isPopupMode, setIsPopupMode] = useState<boolean>(false);
+  const [overlaySizePercent, setOverlaySizePercent] = useState<number>(100);
+  const [overlayOpacityPercent, setOverlayOpacityPercent] = useState<number>(75);
 
   const THEME_OPTIONS = [
     { id: "gold", name: "Gold", dotClass: "gold" },
@@ -173,11 +175,41 @@ export default function JarvisOrb() {
         setIsPopupMode(isSmall);
       };
       window.addEventListener("resize", handleResize);
+      const savedOverlaySize = localStorage.getItem("aegis_overlay_size_percent");
+      if (savedOverlaySize) {
+        const val = parseInt(savedOverlaySize, 10);
+        if (!isNaN(val)) setOverlaySizePercent(val);
+      }
+
+      const savedOverlayOpacity = localStorage.getItem("aegis_overlay_opacity_percent");
+      if (savedOverlayOpacity) {
+        const val = parseInt(savedOverlayOpacity, 10);
+        if (!isNaN(val)) setOverlayOpacityPercent(val);
+      }
+
       return () => {
         window.removeEventListener("resize", handleResize);
       };
     }
   }, []);
+
+  const handleOverlaySizeChange = (val: number) => {
+    setOverlaySizePercent(val);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("aegis_overlay_size_percent", val.toString());
+      const sizeDp = Math.round(60 * (val / 100));
+      (window as any).AndroidAppLauncher?.setOverlaySize?.(sizeDp);
+    }
+  };
+
+  const handleOverlayOpacityChange = (val: number) => {
+    setOverlayOpacityPercent(val);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("aegis_overlay_opacity_percent", val.toString());
+      const opacityFloat = val / 100;
+      (window as any).AndroidAppLauncher?.setOverlayOpacity?.(opacityFloat);
+    }
+  };
 
   const changeTheme = (newTheme: string) => {
     setThemeColorState(newTheme);
@@ -991,15 +1023,7 @@ export default function JarvisOrb() {
           {/* Settings Modal */}
           {showSettings && (
             <div className="settings-modal-backdrop" onClick={() => setShowSettings(false)}>
-              <div
-                className="settings-modal"
-                onClick={(e) => e.stopPropagation()}
-                style={{
-                  maxHeight: "85vh",
-                  overflowY: "auto",
-                  WebkitOverflowScrolling: "touch",
-                }}
-              >
+              <div className="settings-modal" onClick={(e) => e.stopPropagation()}>
                 <h3>⚙️ AEGIS AI Settings</h3>
                 <p>Enter your free Google Gemini API Key to enable unlimited dynamic AI question answering:</p>
                 <input
@@ -1105,6 +1129,59 @@ export default function JarvisOrb() {
                   </div>
                   <div style={{ fontSize: "10.5px", color: "#30d158", marginTop: "4px", lineHeight: "1.4" }}>
                     💻 <strong>Windows System Audio:</strong> Direct Windows OS microphone integration. Works 100% offline with zero external cloud dependencies.
+                  </div>
+                </div>
+
+                {/* Floating Overlay Size & Visibility Percentage Bars */}
+                <div className="theme-picker-section">
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                    <h4>📱 FLOATING OVERLAY SIZE</h4>
+                    <span style={{ fontSize: "12px", color: "var(--theme-color)", fontWeight: "bold" }}>
+                      {overlaySizePercent}% ({Math.round(60 * (overlaySizePercent / 100))}dp)
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="50"
+                    max="150"
+                    step="1"
+                    value={overlaySizePercent}
+                    onChange={(e) => handleOverlaySizeChange(parseInt(e.target.value, 10))}
+                    style={{
+                      width: "100%",
+                      accentColor: "var(--theme-color)",
+                      height: "6px",
+                      borderRadius: "4px",
+                      cursor: "pointer",
+                      marginBottom: "16px",
+                      touchAction: "pan-x",
+                    }}
+                  />
+
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                    <h4>👁️ FLOATING OVERLAY VISIBILITY (OPACITY)</h4>
+                    <span style={{ fontSize: "12px", color: "var(--theme-color)", fontWeight: "bold" }}>
+                      {overlayOpacityPercent}%
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="20"
+                    max="100"
+                    step="1"
+                    value={overlayOpacityPercent}
+                    onChange={(e) => handleOverlayOpacityChange(parseInt(e.target.value, 10))}
+                    style={{
+                      width: "100%",
+                      accentColor: "var(--theme-color)",
+                      height: "6px",
+                      borderRadius: "4px",
+                      cursor: "pointer",
+                      touchAction: "pan-x",
+                    }}
+                  />
+                  <div style={{ fontSize: "10.5px", color: "var(--theme-text-light)", opacity: 0.8, marginTop: "6px" }}>
+                    Drag the percentage bars to dynamically increase or decrease the floating orb size and transparency on your phone.
                   </div>
                 </div>
 

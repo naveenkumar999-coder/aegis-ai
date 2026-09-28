@@ -75,6 +75,26 @@ public class OverlayService extends Service {
         createOverlay();
     }
 
+    @Override
+    public int onStartCommand(Intent intent, int flags, int startId) {
+        if (intent != null) {
+            String action = intent.getAction();
+            if ("UPDATE_ORB_SETTINGS".equals(action)) {
+                if (intent.hasExtra("orb_size_dp")) {
+                    int sizeDp = intent.getIntExtra("orb_size_dp", currentOrbSizeDp);
+                    setOrbSize(sizeDp);
+                }
+                if (intent.hasExtra("orb_opacity")) {
+                    float opacity = intent.getFloatExtra("orb_opacity", currentOpacity);
+                    setOrbOpacity(opacity);
+                }
+            } else if ("STOP_OVERLAY".equals(action)) {
+                stopOverlaySelf();
+            }
+        }
+        return START_STICKY;
+    }
+
     private void startForegroundIfNeeded() {
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -279,65 +299,6 @@ public class OverlayService extends Service {
         actionsRow.addView(torchBtn);
         cardView.addView(actionsRow);
 
-        // Customization Section: Size & Visibility (Opacity)
-        LinearLayout customControls = new LinearLayout(this);
-        customControls.setOrientation(LinearLayout.VERTICAL);
-        customControls.setPadding(0, dpToPx(6), 0, dpToPx(6));
-
-        // Size Row
-        LinearLayout sizeRow = new LinearLayout(this);
-        sizeRow.setOrientation(LinearLayout.HORIZONTAL);
-        sizeRow.setGravity(Gravity.CENTER_VERTICAL);
-        sizeRow.setPadding(0, 0, 0, dpToPx(4));
-
-        TextView sizeLabel = new TextView(this);
-        sizeLabel.setText("SIZE: ");
-        sizeLabel.setTextColor(Color.parseColor("#ffaa30"));
-        sizeLabel.setTextSize(9);
-        sizeLabel.setTypeface(null, android.graphics.Typeface.BOLD);
-        sizeRow.addView(sizeLabel);
-
-        Button sizeS = createMiniChipButton("S (46dp)", currentOrbSizeDp == 46);
-        sizeS.setOnClickListener(v -> setOrbSize(46));
-        Button sizeM = createMiniChipButton("M (60dp)", currentOrbSizeDp == 60);
-        sizeM.setOnClickListener(v -> setOrbSize(60));
-        Button sizeL = createMiniChipButton("L (76dp)", currentOrbSizeDp == 76);
-        sizeL.setOnClickListener(v -> setOrbSize(76));
-
-        sizeRow.addView(sizeS);
-        sizeRow.addView(sizeM);
-        sizeRow.addView(sizeL);
-        customControls.addView(sizeRow);
-
-        // Visibility Row
-        LinearLayout opacityRow = new LinearLayout(this);
-        opacityRow.setOrientation(LinearLayout.HORIZONTAL);
-        opacityRow.setGravity(Gravity.CENTER_VERTICAL);
-
-        TextView opLabel = new TextView(this);
-        opLabel.setText("VISIBILITY: ");
-        opLabel.setTextColor(Color.parseColor("#ffaa30"));
-        opLabel.setTextSize(9);
-        opLabel.setTypeface(null, android.graphics.Typeface.BOLD);
-        opacityRow.addView(opLabel);
-
-        Button op35 = createMiniChipButton("35%", currentOpacity < 0.50f);
-        op35.setOnClickListener(v -> setOrbOpacity(0.35f));
-        Button op60 = createMiniChipButton("60%", currentOpacity >= 0.50f && currentOpacity < 0.75f);
-        op60.setOnClickListener(v -> setOrbOpacity(0.60f));
-        Button op85 = createMiniChipButton("85%", currentOpacity >= 0.75f && currentOpacity < 0.95f);
-        op85.setOnClickListener(v -> setOrbOpacity(0.85f));
-        Button op100 = createMiniChipButton("100%", currentOpacity >= 0.95f);
-        op100.setOnClickListener(v -> setOrbOpacity(1.0f));
-
-        opacityRow.addView(op35);
-        opacityRow.addView(op60);
-        opacityRow.addView(op85);
-        opacityRow.addView(op100);
-        customControls.addView(opacityRow);
-
-        cardView.addView(customControls);
-
         // Explicit TURN OFF OVERLAY Button (stops overlay service completely)
         Button turnOffBtn = createStyledButton("🔴 TURN OFF OVERLAY", "#ff3b30");
         turnOffBtn.setOnClickListener(v -> stopOverlaySelf());
@@ -395,30 +356,7 @@ public class OverlayService extends Service {
         windowManager.addView(overlayView, params);
     }
 
-    private Button createMiniChipButton(String text, boolean isActive) {
-        Button btn = new Button(this);
-        btn.setText(text);
-        btn.setTextSize(9);
-        btn.setTextColor(isActive ? Color.parseColor("#ffaa30") : Color.WHITE);
-        btn.setPadding(dpToPx(4), 0, dpToPx(4), 0);
-
-        GradientDrawable bg = new GradientDrawable();
-        bg.setColor(isActive ? Color.parseColor("#44ffaa30") : Color.parseColor("#22ffffff"));
-        bg.setCornerRadius(dpToPx(6));
-        bg.setStroke(dpToPx(1), isActive ? Color.parseColor("#ffaa30") : Color.parseColor("#44ffffff"));
-        btn.setBackground(bg);
-
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                0,
-                dpToPx(24),
-                1.0f
-        );
-        lp.setMargins(dpToPx(2), 0, dpToPx(2), 0);
-        btn.setLayoutParams(lp);
-        return btn;
-    }
-
-    private void setOrbSize(int newSizeDp) {
+    public void setOrbSize(int newSizeDp) {
         currentOrbSizeDp = newSizeDp;
         int px = dpToPx(newSizeDp);
         if (circleView != null) {
@@ -437,19 +375,23 @@ public class OverlayService extends Service {
                 orb3DViewRef.setLayoutParams(op);
             }
         }
+        if (!isExpanded && params != null && windowManager != null && overlayView != null) {
+            params.width = px;
+            params.height = px;
+            windowManager.updateViewLayout(overlayView, params);
+            checkEdgePlacement();
+        }
         getSharedPreferences("aegis_overlay_prefs", MODE_PRIVATE)
                 .edit().putInt("orb_size_dp", newSizeDp).apply();
-        Toast.makeText(this, "Orb Size: " + newSizeDp + "dp", Toast.LENGTH_SHORT).show();
     }
 
-    private void setOrbOpacity(float alpha) {
+    public void setOrbOpacity(float alpha) {
         currentOpacity = alpha;
         if (circleView != null) {
             circleView.setAlpha(alpha);
         }
         getSharedPreferences("aegis_overlay_prefs", MODE_PRIVATE)
                 .edit().putFloat("orb_opacity", alpha).apply();
-        Toast.makeText(this, "Visibility: " + (int)(alpha * 100) + "%", Toast.LENGTH_SHORT).show();
     }
 
     private Button createStyledButton(String text, String colorHex) {
@@ -563,17 +505,13 @@ public class OverlayService extends Service {
 
     private void startVoiceCommand() {
         try {
-            Intent intent = getPackageManager().getLaunchIntentForPackage("com.monday.ai");
-            if (intent == null) {
-                intent = new Intent(this, MainActivity.class);
-            }
+            Intent intent = new Intent(this, MainActivity.class);
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
             intent.putExtra("start_voice", true);
             startActivity(intent);
         } catch (Exception e) {
             e.printStackTrace();
         }
-        Toast.makeText(this, "🎙️ Listening...", Toast.LENGTH_SHORT).show();
         toggleExpand();
     }
 
@@ -581,17 +519,13 @@ public class OverlayService extends Service {
         if (query == null || query.trim().isEmpty()) return;
         String q = query.trim();
         try {
-            Intent intent = getPackageManager().getLaunchIntentForPackage("com.monday.ai");
-            if (intent == null) {
-                intent = new Intent(this, MainActivity.class);
-            }
+            Intent intent = new Intent(this, MainActivity.class);
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
             intent.putExtra("user_query", q);
             startActivity(intent);
         } catch (Exception e) {
             e.printStackTrace();
         }
-        Toast.makeText(this, "Directive: " + q, Toast.LENGTH_SHORT).show();
         toggleExpand();
     }
 

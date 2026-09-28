@@ -502,6 +502,12 @@ export class VoiceEngine {
   }
 
   public async startListening() {
+    // 0. If running inside native Android App with AndroidAppLauncher.startVoiceRecognition
+    if (typeof window !== "undefined" && (window as any).AndroidAppLauncher?.startVoiceRecognition) {
+      (window as any).AndroidAppLauncher.startVoiceRecognition();
+      return;
+    }
+
     // 1. Activate hardware microphone stream with echo cancellation & noise suppression
     await this.ensureMicStream();
 

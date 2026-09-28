@@ -12,6 +12,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.provider.MediaStore;
 import android.provider.Settings;
+import android.speech.RecognizerIntent;
 import android.speech.tts.TextToSpeech;
 import android.util.Rational;
 import android.webkit.JavascriptInterface;
@@ -22,6 +23,7 @@ import android.content.SharedPreferences;
 import android.widget.EditText;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.ArrayList;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import java.util.List;
@@ -36,6 +38,15 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED ||
+                checkSelfPermission(android.Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(new String[]{
+                    android.Manifest.permission.RECORD_AUDIO,
+                    android.Manifest.permission.CAMERA
+                }, 1001);
+            }
+        }
         initTTS();
         registerBridge();
         startOverlayService();
@@ -59,7 +70,7 @@ public class MainActivity extends BridgeActivity {
                 }
             }
             if (intent.getBooleanExtra("start_voice", false)) {
-                startVoiceListeningInApp();
+                startNativeSpeechRecognizer();
             }
         }
     }
@@ -74,6 +85,34 @@ public class MainActivity extends BridgeActivity {
                 );
             }
         });
+    }
+
+    public void startNativeSpeechRecognizer() {
+        runOnUiThread(() -> {
+            try {
+                Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+                intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+                intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault());
+                intent.putExtra(RecognizerIntent.EXTRA_PROMPT, "Speak to AEGIS AI, Boss...");
+                startActivityForResult(intent, 2002);
+            } catch (Exception e) {
+                e.printStackTrace();
+                startVoiceListeningInApp();
+            }
+        });
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == 2002 && resultCode == RESULT_OK && data != null) {
+            ArrayList<String> matches = data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
+            if (matches != null && !matches.isEmpty()) {
+                String spoken = matches.get(0);
+                Toast.makeText(this, "Directive: " + spoken, Toast.LENGTH_SHORT).show();
+                sendQueryToWebView(spoken);
+            }
+        }
     }
 
     public void sendQueryToWebView(String query) {
@@ -364,6 +403,48 @@ public class MainActivity extends BridgeActivity {
                 @Override
                 public void run() {
                     MainActivity.this.enterPipMode();
+                }
+            });
+        }
+
+        @JavascriptInterface
+        public void setOverlaySize(int sizeDp) {
+            try {
+                Intent intent = new Intent(MainActivity.this, OverlayService.class);
+                intent.setAction("UPDATE_ORB_SETTINGS");
+                intent.putExtra("orb_size_dp", sizeDp);
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    MainActivity.this.startForegroundService(intent);
+                } else {
+                    MainActivity.this.startService(intent);
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+
+        @JavascriptInterface
+        public void setOverlayOpacity(float opacity) {
+            try {
+                Intent intent = new Intent(MainActivity.this, OverlayService.class);
+                intent.setAction("UPDATE_ORB_SETTINGS");
+                intent.putExtra("orb_opacity", opacity);
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    MainActivity.this.startForegroundService(intent);
+                } else {
+                    MainActivity.this.startService(intent);
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+
+        @JavascriptInterface
+        public void startVoiceRecognition() {
+            MainActivity.this.runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    MainActivity.this.startNativeSpeechRecognizer();
                 }
             });
         }
