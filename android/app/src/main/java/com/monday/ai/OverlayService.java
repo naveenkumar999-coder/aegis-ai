@@ -6,6 +6,7 @@ import android.app.NotificationManager;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
@@ -46,6 +47,10 @@ public class OverlayService extends Service {
     private FrameLayout circleView;
     private LinearLayout cardView;
     private EditText textInputField;
+    private CyberOrb3DView orb3DViewRef;
+
+    private int currentOrbSizeDp = 60;
+    private float currentOpacity = 0.75f;
 
     private int initialX;
     private int initialY;
@@ -63,6 +68,9 @@ public class OverlayService extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
+        SharedPreferences prefs = getSharedPreferences("aegis_overlay_prefs", MODE_PRIVATE);
+        currentOrbSizeDp = prefs.getInt("orb_size_dp", 60);
+        currentOpacity = prefs.getFloat("orb_opacity", 0.75f);
         startForegroundIfNeeded();
         createOverlay();
     }
@@ -111,16 +119,17 @@ public class OverlayService extends Service {
             layoutType = WindowManager.LayoutParams.TYPE_PHONE;
         }
 
+        int orbSizePx = dpToPx(currentOrbSizeDp);
         params = new WindowManager.LayoutParams(
-                dpToPx(60),
-                dpToPx(60),
+                orbSizePx,
+                orbSizePx,
                 layoutType,
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
                 PixelFormat.TRANSLUCENT
         );
 
         params.gravity = Gravity.TOP | Gravity.START;
-        params.x = -dpToPx(28); // Docked on left edge showing half the orb (EasyTouch)
+        params.x = -orbSizePx / 2; // Initial position tucked at left edge
         params.y = dpToPx(240);
         lastOrbX = params.x;
         lastOrbY = params.y;
@@ -137,13 +146,13 @@ public class OverlayService extends Service {
 
         // 1. 3D Cybernetic Floating Orb (EasyTouch edge ball)
         circleView = new FrameLayout(this);
-        int orbSize = dpToPx(60);
-        FrameLayout.LayoutParams circleParams = new FrameLayout.LayoutParams(orbSize, orbSize);
+        FrameLayout.LayoutParams circleParams = new FrameLayout.LayoutParams(orbSizePx, orbSizePx);
         circleView.setLayoutParams(circleParams);
-        circleView.setAlpha(0.6f);
+        circleView.setAlpha(currentOpacity);
 
         CyberOrb3DView orb3D = new CyberOrb3DView(this);
-        FrameLayout.LayoutParams orbParams = new FrameLayout.LayoutParams(orbSize, orbSize);
+        orb3DViewRef = orb3D;
+        FrameLayout.LayoutParams orbParams = new FrameLayout.LayoutParams(orbSizePx, orbSizePx);
         orbParams.gravity = Gravity.CENTER;
         circleView.addView(orb3D, orbParams);
 
@@ -270,6 +279,65 @@ public class OverlayService extends Service {
         actionsRow.addView(torchBtn);
         cardView.addView(actionsRow);
 
+        // Customization Section: Size & Visibility (Opacity)
+        LinearLayout customControls = new LinearLayout(this);
+        customControls.setOrientation(LinearLayout.VERTICAL);
+        customControls.setPadding(0, dpToPx(6), 0, dpToPx(6));
+
+        // Size Row
+        LinearLayout sizeRow = new LinearLayout(this);
+        sizeRow.setOrientation(LinearLayout.HORIZONTAL);
+        sizeRow.setGravity(Gravity.CENTER_VERTICAL);
+        sizeRow.setPadding(0, 0, 0, dpToPx(4));
+
+        TextView sizeLabel = new TextView(this);
+        sizeLabel.setText("SIZE: ");
+        sizeLabel.setTextColor(Color.parseColor("#ffaa30"));
+        sizeLabel.setTextSize(9);
+        sizeLabel.setTypeface(null, android.graphics.Typeface.BOLD);
+        sizeRow.addView(sizeLabel);
+
+        Button sizeS = createMiniChipButton("S (46dp)", currentOrbSizeDp == 46);
+        sizeS.setOnClickListener(v -> setOrbSize(46));
+        Button sizeM = createMiniChipButton("M (60dp)", currentOrbSizeDp == 60);
+        sizeM.setOnClickListener(v -> setOrbSize(60));
+        Button sizeL = createMiniChipButton("L (76dp)", currentOrbSizeDp == 76);
+        sizeL.setOnClickListener(v -> setOrbSize(76));
+
+        sizeRow.addView(sizeS);
+        sizeRow.addView(sizeM);
+        sizeRow.addView(sizeL);
+        customControls.addView(sizeRow);
+
+        // Visibility Row
+        LinearLayout opacityRow = new LinearLayout(this);
+        opacityRow.setOrientation(LinearLayout.HORIZONTAL);
+        opacityRow.setGravity(Gravity.CENTER_VERTICAL);
+
+        TextView opLabel = new TextView(this);
+        opLabel.setText("VISIBILITY: ");
+        opLabel.setTextColor(Color.parseColor("#ffaa30"));
+        opLabel.setTextSize(9);
+        opLabel.setTypeface(null, android.graphics.Typeface.BOLD);
+        opacityRow.addView(opLabel);
+
+        Button op35 = createMiniChipButton("35%", currentOpacity < 0.50f);
+        op35.setOnClickListener(v -> setOrbOpacity(0.35f));
+        Button op60 = createMiniChipButton("60%", currentOpacity >= 0.50f && currentOpacity < 0.75f);
+        op60.setOnClickListener(v -> setOrbOpacity(0.60f));
+        Button op85 = createMiniChipButton("85%", currentOpacity >= 0.75f && currentOpacity < 0.95f);
+        op85.setOnClickListener(v -> setOrbOpacity(0.85f));
+        Button op100 = createMiniChipButton("100%", currentOpacity >= 0.95f);
+        op100.setOnClickListener(v -> setOrbOpacity(1.0f));
+
+        opacityRow.addView(op35);
+        opacityRow.addView(op60);
+        opacityRow.addView(op85);
+        opacityRow.addView(op100);
+        customControls.addView(opacityRow);
+
+        cardView.addView(customControls);
+
         // Explicit TURN OFF OVERLAY Button (stops overlay service completely)
         Button turnOffBtn = createStyledButton("🔴 TURN OFF OVERLAY", "#ff3b30");
         turnOffBtn.setOnClickListener(v -> stopOverlaySelf());
@@ -280,7 +348,7 @@ public class OverlayService extends Service {
 
         overlayView = container;
 
-        // Touch Drag & Tap Handler (Snaps to screen edge like EasyTouch)
+        // Touch Drag & Tap Handler (Free movement anywhere; tucks half off-screen only at edges)
         circleView.setOnTouchListener((v, event) -> {
             switch (event.getAction()) {
                 case MotionEvent.ACTION_DOWN:
@@ -311,7 +379,7 @@ public class OverlayService extends Service {
                     if (isClick) {
                         toggleExpand();
                     } else {
-                        snapToEdge();
+                        checkEdgePlacement();
                     }
                     return true;
             }
@@ -325,6 +393,63 @@ public class OverlayService extends Service {
         });
 
         windowManager.addView(overlayView, params);
+    }
+
+    private Button createMiniChipButton(String text, boolean isActive) {
+        Button btn = new Button(this);
+        btn.setText(text);
+        btn.setTextSize(9);
+        btn.setTextColor(isActive ? Color.parseColor("#ffaa30") : Color.WHITE);
+        btn.setPadding(dpToPx(4), 0, dpToPx(4), 0);
+
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(isActive ? Color.parseColor("#44ffaa30") : Color.parseColor("#22ffffff"));
+        bg.setCornerRadius(dpToPx(6));
+        bg.setStroke(dpToPx(1), isActive ? Color.parseColor("#ffaa30") : Color.parseColor("#44ffffff"));
+        btn.setBackground(bg);
+
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                0,
+                dpToPx(24),
+                1.0f
+        );
+        lp.setMargins(dpToPx(2), 0, dpToPx(2), 0);
+        btn.setLayoutParams(lp);
+        return btn;
+    }
+
+    private void setOrbSize(int newSizeDp) {
+        currentOrbSizeDp = newSizeDp;
+        int px = dpToPx(newSizeDp);
+        if (circleView != null) {
+            FrameLayout.LayoutParams cp = (FrameLayout.LayoutParams) circleView.getLayoutParams();
+            if (cp != null) {
+                cp.width = px;
+                cp.height = px;
+                circleView.setLayoutParams(cp);
+            }
+        }
+        if (orb3DViewRef != null) {
+            FrameLayout.LayoutParams op = (FrameLayout.LayoutParams) orb3DViewRef.getLayoutParams();
+            if (op != null) {
+                op.width = px;
+                op.height = px;
+                orb3DViewRef.setLayoutParams(op);
+            }
+        }
+        getSharedPreferences("aegis_overlay_prefs", MODE_PRIVATE)
+                .edit().putInt("orb_size_dp", newSizeDp).apply();
+        Toast.makeText(this, "Orb Size: " + newSizeDp + "dp", Toast.LENGTH_SHORT).show();
+    }
+
+    private void setOrbOpacity(float alpha) {
+        currentOpacity = alpha;
+        if (circleView != null) {
+            circleView.setAlpha(alpha);
+        }
+        getSharedPreferences("aegis_overlay_prefs", MODE_PRIVATE)
+                .edit().putFloat("orb_opacity", alpha).apply();
+        Toast.makeText(this, "Visibility: " + (int)(alpha * 100) + "%", Toast.LENGTH_SHORT).show();
     }
 
     private Button createStyledButton(String text, String colorHex) {
@@ -350,33 +475,36 @@ public class OverlayService extends Service {
         return btn;
     }
 
-    private void snapToEdge() {
+    private void checkEdgePlacement() {
         if (windowManager == null || overlayView == null) return;
         int screenWidth = getResources().getDisplayMetrics().widthPixels;
-        int orbSize = dpToPx(60);
-        int midX = params.x + orbSize / 2;
-        boolean isLeft = midX < screenWidth / 2;
+        int screenHeight = getResources().getDisplayMetrics().heightPixels;
+        int orbSize = dpToPx(currentOrbSizeDp);
 
-        if (isLeft) {
-            // Half-hidden on left edge (Easy Touch style, showing half orb)
-            params.x = -dpToPx(28);
+        // Edge threshold: only if user intentionally drops near the screen edge (within 35dp)
+        int edgeThreshold = dpToPx(35);
+
+        if (params.x < edgeThreshold) {
+            // User placed it at/near left edge -> tuck half off screen!
+            params.x = -orbSize / 2;
+            circleView.animate().alpha(currentOpacity * 0.7f).setDuration(300).start();
+        } else if (params.x + orbSize > screenWidth - edgeThreshold) {
+            // User placed it at/near right edge -> tuck half off screen!
+            params.x = screenWidth - orbSize / 2;
+            circleView.animate().alpha(currentOpacity * 0.7f).setDuration(300).start();
         } else {
-            // Half-hidden on right edge (Easy Touch style, showing half orb)
-            params.x = screenWidth - dpToPx(32);
+            // User placed it ANYWHERE ELSE on the screen -> LET IT STAY RIGHT THERE!
+            circleView.animate().alpha(currentOpacity).setDuration(200).start();
         }
 
-        int screenHeight = getResources().getDisplayMetrics().heightPixels;
-        params.y = Math.max(dpToPx(50), Math.min(screenHeight - orbSize - dpToPx(80), params.y));
+        // Keep within vertical screen bounds
+        params.y = Math.max(dpToPx(30), Math.min(screenHeight - orbSize - dpToPx(50), params.y));
 
         lastOrbX = params.x;
         lastOrbY = params.y;
 
         if (windowManager != null && overlayView != null) {
             windowManager.updateViewLayout(overlayView, params);
-        }
-
-        if (circleView != null) {
-            circleView.animate().alpha(0.6f).setDuration(350).start();
         }
     }
 
@@ -418,9 +546,10 @@ public class OverlayService extends Service {
                 overlayView.setBackgroundColor(Color.TRANSPARENT);
             }
 
-            // Restore compact size and position for the docked edge orb
-            params.width = dpToPx(60);
-            params.height = dpToPx(60);
+            // Restore compact size and position for the orb
+            int orbSize = dpToPx(currentOrbSizeDp);
+            params.width = orbSize;
+            params.height = orbSize;
             params.x = lastOrbX;
             params.y = lastOrbY;
             params.flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE;
@@ -428,7 +557,7 @@ public class OverlayService extends Service {
             if (windowManager != null && overlayView != null) {
                 windowManager.updateViewLayout(overlayView, params);
             }
-            snapToEdge();
+            checkEdgePlacement();
         }
     }
 

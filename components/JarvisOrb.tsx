@@ -991,7 +991,15 @@ export default function JarvisOrb() {
           {/* Settings Modal */}
           {showSettings && (
             <div className="settings-modal-backdrop" onClick={() => setShowSettings(false)}>
-              <div className="settings-modal" onClick={(e) => e.stopPropagation()}>
+              <div
+                className="settings-modal"
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  maxHeight: "85vh",
+                  overflowY: "auto",
+                  WebkitOverflowScrolling: "touch",
+                }}
+              >
                 <h3>⚙️ AEGIS AI Settings</h3>
                 <p>Enter your free Google Gemini API Key to enable unlimited dynamic AI question answering:</p>
                 <input
