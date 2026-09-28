@@ -588,15 +588,31 @@ export default function JarvisOrb() {
           handleUserQueryRef.current(q);
         }
       };
+      (window as any).startVoiceListening = () => {
+        if (voiceRef.current) {
+          setError(null);
+          voiceRef.current.startListening();
+        }
+      };
       if ((window as any)._pendingAegisQuery) {
         const pending = (window as any)._pendingAegisQuery;
         delete (window as any)._pendingAegisQuery;
         handleUserQueryRef.current(pending);
       }
+      if ((window as any)._pendingVoiceListening) {
+        delete (window as any)._pendingVoiceListening;
+        setTimeout(() => {
+          if (voiceRef.current) {
+            setError(null);
+            voiceRef.current.startListening();
+          }
+        }, 500);
+      }
     }
     return () => {
       if (typeof window !== "undefined") {
         delete (window as any).sendAegisQuery;
+        delete (window as any).startVoiceListening;
       }
     };
   }, []);

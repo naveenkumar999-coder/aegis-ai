@@ -51,12 +51,29 @@ public class MainActivity extends BridgeActivity {
     }
 
     private void handleIncomingIntent(Intent intent) {
-        if (intent != null && intent.hasExtra("user_query")) {
-            String q = intent.getStringExtra("user_query");
-            if (q != null && !q.trim().isEmpty()) {
-                sendQueryToWebView(q.trim());
+        if (intent != null) {
+            if (intent.hasExtra("user_query")) {
+                String q = intent.getStringExtra("user_query");
+                if (q != null && !q.trim().isEmpty()) {
+                    sendQueryToWebView(q.trim());
+                }
+            }
+            if (intent.getBooleanExtra("start_voice", false)) {
+                startVoiceListeningInApp();
             }
         }
+    }
+
+    public void startVoiceListeningInApp() {
+        runOnUiThread(() -> {
+            if (bridge != null && bridge.getWebView() != null) {
+                bridge.getWebView().evaluateJavascript(
+                    "if (window.startVoiceListening) { window.startVoiceListening(); } " +
+                    "else { window._pendingVoiceListening = true; }",
+                    null
+                );
+            }
+        });
     }
 
     public void sendQueryToWebView(String query) {

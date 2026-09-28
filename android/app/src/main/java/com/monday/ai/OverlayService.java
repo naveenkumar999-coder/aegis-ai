@@ -49,6 +49,8 @@ public class OverlayService extends Service {
 
     private int initialX;
     private int initialY;
+    private int lastOrbX = -30;
+    private int lastOrbY = 350;
     private float initialTouchX;
     private float initialTouchY;
     private boolean isClick = true;
@@ -110,66 +112,74 @@ public class OverlayService extends Service {
         }
 
         params = new WindowManager.LayoutParams(
-                WindowManager.LayoutParams.WRAP_CONTENT,
-                WindowManager.LayoutParams.WRAP_CONTENT,
+                dpToPx(60),
+                dpToPx(60),
                 layoutType,
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
                 PixelFormat.TRANSLUCENT
         );
 
         params.gravity = Gravity.TOP | Gravity.START;
-        params.x = 100;
-        params.y = 350;
+        params.x = -dpToPx(28); // Docked on left edge showing half the orb (EasyTouch)
+        params.y = dpToPx(240);
+        lastOrbX = params.x;
+        lastOrbY = params.y;
 
-        // Container Layout
+        // Container Layout (covers screen when expanded, touch outside to dismiss)
         FrameLayout container = new FrameLayout(this);
+        container.setClickable(true);
+        container.setFocusable(true);
+        container.setOnClickListener(v -> {
+            if (isExpanded) {
+                toggleExpand();
+            }
+        });
 
-        // 1. 3D Cybernetic Floating Orb (60dp with 3D gyroscopic rotating rings and glowing core)
+        // 1. 3D Cybernetic Floating Orb (EasyTouch edge ball)
         circleView = new FrameLayout(this);
         int orbSize = dpToPx(60);
         FrameLayout.LayoutParams circleParams = new FrameLayout.LayoutParams(orbSize, orbSize);
         circleView.setLayoutParams(circleParams);
+        circleView.setAlpha(0.6f);
 
         CyberOrb3DView orb3D = new CyberOrb3DView(this);
         FrameLayout.LayoutParams orbParams = new FrameLayout.LayoutParams(orbSize, orbSize);
         orbParams.gravity = Gravity.CENTER;
         circleView.addView(orb3D, orbParams);
 
-        // 2. Expanded Control Card View
+        // 2. Expanded Control Card View (EasyTouch centered card)
         cardView = new LinearLayout(this);
         cardView.setOrientation(LinearLayout.VERTICAL);
-        cardView.setPadding(dpToPx(12), dpToPx(10), dpToPx(12), dpToPx(10));
+        cardView.setPadding(dpToPx(14), dpToPx(12), dpToPx(14), dpToPx(12));
         cardView.setVisibility(View.GONE);
+        // Intercept clicks inside card so tapping inside does NOT dismiss the popup
+        cardView.setOnClickListener(v -> {});
+
+        FrameLayout.LayoutParams cardParams = new FrameLayout.LayoutParams(
+                dpToPx(280),
+                FrameLayout.LayoutParams.WRAP_CONTENT
+        );
+        cardParams.gravity = Gravity.CENTER;
+        cardView.setLayoutParams(cardParams);
 
         GradientDrawable cardBg = new GradientDrawable();
-        cardBg.setColor(Color.parseColor("#F50c0c12"));
-        cardBg.setCornerRadius(dpToPx(16));
+        cardBg.setColor(Color.parseColor("#EE0a0a10"));
+        cardBg.setCornerRadius(dpToPx(18));
         cardBg.setStroke(dpToPx(1.5f), Color.parseColor("#ffaa30"));
         cardView.setBackground(cardBg);
 
-        // Header
+        // Header (Clean title, touching anywhere outside automatically hides)
         LinearLayout header = new LinearLayout(this);
         header.setOrientation(LinearLayout.HORIZONTAL);
-        header.setGravity(Gravity.CENTER_VERTICAL);
+        header.setGravity(Gravity.CENTER);
         header.setPadding(0, 0, 0, dpToPx(8));
 
         TextView title = new TextView(this);
-        title.setText("AEGIS AI");
+        title.setText("⚡ AEGIS AI");
         title.setTextColor(Color.parseColor("#ffaa30"));
-        title.setTextSize(12);
+        title.setTextSize(13);
         title.setTypeface(null, android.graphics.Typeface.BOLD);
-        LinearLayout.LayoutParams titleParams = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f);
-        header.addView(title, titleParams);
-
-        // Close / Minimize Header Button (✕ HIDE - returns to normal floating orb)
-        TextView closeHeaderBtn = new TextView(this);
-        closeHeaderBtn.setText(" ✕ HIDE ");
-        closeHeaderBtn.setTextColor(Color.parseColor("#ffaa30"));
-        closeHeaderBtn.setTextSize(11);
-        closeHeaderBtn.setTypeface(null, android.graphics.Typeface.BOLD);
-        closeHeaderBtn.setPadding(dpToPx(6), dpToPx(3), dpToPx(6), dpToPx(3));
-        closeHeaderBtn.setOnClickListener(v -> toggleExpand());
-        header.addView(closeHeaderBtn);
+        header.addView(title);
 
         cardView.addView(header);
 
@@ -241,13 +251,13 @@ public class OverlayService extends Service {
         inputRow.addView(sendBtn);
         cardView.addView(inputRow);
 
-        // Action Buttons Row
+        // Action Buttons Row (TALK, WHATSAPP, FLASH)
         LinearLayout actionsRow = new LinearLayout(this);
         actionsRow.setOrientation(LinearLayout.HORIZONTAL);
         actionsRow.setGravity(Gravity.CENTER);
 
         Button talkBtn = createStyledButton("🎙️ TALK", "#ffaa30");
-        talkBtn.setOnClickListener(v -> launchApp("com.monday.ai"));
+        talkBtn.setOnClickListener(v -> startVoiceCommand());
 
         Button waBtn = createStyledButton("💬 WHATSAPP", "#25D366");
         waBtn.setOnClickListener(v -> openWhatsApp());
@@ -260,11 +270,6 @@ public class OverlayService extends Service {
         actionsRow.addView(torchBtn);
         cardView.addView(actionsRow);
 
-        // Open App Button Row
-        Button openAppBtn = createStyledButton("⚡ OPEN AEGIS APP", "#ffaa30");
-        openAppBtn.setOnClickListener(v -> launchApp("com.monday.ai"));
-        cardView.addView(openAppBtn);
-
         // Explicit TURN OFF OVERLAY Button (stops overlay service completely)
         Button turnOffBtn = createStyledButton("🔴 TURN OFF OVERLAY", "#ff3b30");
         turnOffBtn.setOnClickListener(v -> stopOverlaySelf());
@@ -275,7 +280,7 @@ public class OverlayService extends Service {
 
         overlayView = container;
 
-        // Touch Drag & Tap Handler
+        // Touch Drag & Tap Handler (Snaps to screen edge like EasyTouch)
         circleView.setOnTouchListener((v, event) -> {
             switch (event.getAction()) {
                 case MotionEvent.ACTION_DOWN:
@@ -284,24 +289,29 @@ public class OverlayService extends Service {
                     initialTouchX = event.getRawX();
                     initialTouchY = event.getRawY();
                     isClick = true;
+                    circleView.animate().alpha(1.0f).setDuration(120).start();
                     return true;
 
                 case MotionEvent.ACTION_MOVE:
                     float deltaX = event.getRawX() - initialTouchX;
                     float deltaY = event.getRawY() - initialTouchY;
 
-                    if (Math.abs(deltaX) > 6 || Math.abs(deltaY) > 6) {
+                    if (Math.abs(deltaX) > 8 || Math.abs(deltaY) > 8) {
                         isClick = false;
                     }
 
                     params.x = initialX + (int) deltaX;
                     params.y = initialY + (int) deltaY;
-                    windowManager.updateViewLayout(overlayView, params);
+                    if (windowManager != null && overlayView != null) {
+                        windowManager.updateViewLayout(overlayView, params);
+                    }
                     return true;
 
                 case MotionEvent.ACTION_UP:
                     if (isClick) {
                         toggleExpand();
+                    } else {
+                        snapToEdge();
                     }
                     return true;
             }
@@ -340,18 +350,60 @@ public class OverlayService extends Service {
         return btn;
     }
 
+    private void snapToEdge() {
+        if (windowManager == null || overlayView == null) return;
+        int screenWidth = getResources().getDisplayMetrics().widthPixels;
+        int orbSize = dpToPx(60);
+        int midX = params.x + orbSize / 2;
+        boolean isLeft = midX < screenWidth / 2;
+
+        if (isLeft) {
+            // Half-hidden on left edge (Easy Touch style, showing half orb)
+            params.x = -dpToPx(28);
+        } else {
+            // Half-hidden on right edge (Easy Touch style, showing half orb)
+            params.x = screenWidth - dpToPx(32);
+        }
+
+        int screenHeight = getResources().getDisplayMetrics().heightPixels;
+        params.y = Math.max(dpToPx(50), Math.min(screenHeight - orbSize - dpToPx(80), params.y));
+
+        lastOrbX = params.x;
+        lastOrbY = params.y;
+
+        if (windowManager != null && overlayView != null) {
+            windowManager.updateViewLayout(overlayView, params);
+        }
+
+        if (circleView != null) {
+            circleView.animate().alpha(0.6f).setDuration(350).start();
+        }
+    }
+
     private void toggleExpand() {
         isExpanded = !isExpanded;
         if (isExpanded) {
+            lastOrbX = params.x;
+            lastOrbY = params.y;
+
             circleView.setVisibility(View.GONE);
             cardView.setVisibility(View.VISIBLE);
-            // Allow focus and soft keyboard for textInputField in popup card
-            params.flags = WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL | WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH;
+
+            // Expand overlay to fill screen with touch-dismiss backdrop
+            params.width = WindowManager.LayoutParams.MATCH_PARENT;
+            params.height = WindowManager.LayoutParams.MATCH_PARENT;
+            params.x = 0;
+            params.y = 0;
+            params.flags = WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL;
+            if (overlayView != null) {
+                overlayView.setBackgroundColor(Color.parseColor("#44000000"));
+            }
+
             if (windowManager != null && overlayView != null) {
                 windowManager.updateViewLayout(overlayView, params);
             }
         } else {
-            // Dismiss soft keyboard when minimizing back to normal orb
+            // Dismiss soft keyboard when minimizing back to edge orb
             if (textInputField != null) {
                 InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
                 if (imm != null) {
@@ -359,14 +411,41 @@ public class OverlayService extends Service {
                 }
                 textInputField.clearFocus();
             }
+
             cardView.setVisibility(View.GONE);
             circleView.setVisibility(View.VISIBLE);
-            // Re-apply FLAG_NOT_FOCUSABLE so touches pass through around the orb
+            if (overlayView != null) {
+                overlayView.setBackgroundColor(Color.TRANSPARENT);
+            }
+
+            // Restore compact size and position for the docked edge orb
+            params.width = dpToPx(60);
+            params.height = dpToPx(60);
+            params.x = lastOrbX;
+            params.y = lastOrbY;
             params.flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE;
+
             if (windowManager != null && overlayView != null) {
                 windowManager.updateViewLayout(overlayView, params);
             }
+            snapToEdge();
         }
+    }
+
+    private void startVoiceCommand() {
+        try {
+            Intent intent = getPackageManager().getLaunchIntentForPackage("com.monday.ai");
+            if (intent == null) {
+                intent = new Intent(this, MainActivity.class);
+            }
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+            intent.putExtra("start_voice", true);
+            startActivity(intent);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        Toast.makeText(this, "🎙️ Listening...", Toast.LENGTH_SHORT).show();
+        toggleExpand();
     }
 
     private void handleTextSubmit(String query) {
