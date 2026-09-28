@@ -211,7 +211,25 @@ export default function JarvisOrb() {
     }
   };
 
-  const changeTheme = (newTheme: string) => {
+  const lastSyncTimestampRef = useRef<number>(0);
+
+  const broadcastSyncSettings = async (settings: Record<string, any>) => {
+    try {
+      await fetch("/api/command-bridge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "sync_settings",
+          sourceDevice: deviceType,
+          settings,
+        }),
+      });
+    } catch (e) {
+      // silent fail
+    }
+  };
+
+  const changeTheme = (newTheme: string, skipBroadcast = false) => {
     setThemeColorState(newTheme);
     if (typeof window !== "undefined") {
       localStorage.setItem("aegis_theme_color", newTheme);
@@ -220,15 +238,22 @@ export default function JarvisOrb() {
     }
     sceneRef.current?.setThemeColor(newTheme);
     updatePipTheme(newTheme);
+    if (!skipBroadcast) {
+      broadcastSyncSettings({ themeColor: newTheme });
+    }
   };
 
-  const changeVoiceMode = (mode: "friday" | "ultron" | "jarvis") => {
+  const changeVoiceMode = (mode: "friday" | "ultron" | "jarvis", skipBroadcast = false) => {
     setVoiceMode(mode);
     if (typeof window !== "undefined") {
       localStorage.setItem("aegis_voice_character", mode);
       localStorage.setItem("monday_voice_character", mode);
+      (window as any).AndroidTTS?.setVoiceCharacter?.(mode);
     }
     voiceRef.current?.setVoiceCharacter(mode);
+    if (!skipBroadcast) {
+      broadcastSyncSettings({ voiceCharacter: mode });
+    }
   };
 
   const changeSttLang = (lang: "en-IN" | "en-US" | "en-GB") => {
@@ -250,13 +275,16 @@ export default function JarvisOrb() {
     voiceRef.current?.setSpeechEngine(engine);
   };
 
-  const saveApiKey = (key: string) => {
+  const saveApiKey = (key: string, skipBroadcast = false) => {
     setGeminiApiKey(key);
     if (typeof window !== "undefined") {
       localStorage.setItem("aegis_gemini_api_key", key.trim());
       localStorage.setItem("monday_gemini_api_key", key.trim());
     }
     setShowSettings(false);
+    if (!skipBroadcast) {
+      broadcastSyncSettings({ geminiApiKey: key.trim() });
+    }
   };
 
   // 1. Initialize 3D Orb Scene
@@ -649,16 +677,43 @@ export default function JarvisOrb() {
     };
   }, []);
 
-  // 4. Real-Time Cross-Device Command Bridge Listener (PC ↔ Mobile)
+  // 4. Real-Time Cross-Device Command Bridge & State Sync Listener (PC ↔ Mobile)
   useEffect(() => {
     const interval = setInterval(async () => {
       try {
         const res = await fetch(`/api/command-bridge?device=${deviceType}`);
         if (res.ok) {
           const data = await res.json();
+
+          // 1. Process pending commands
           if (data.commands && data.commands.length > 0) {
             for (const cmd of data.commands) {
               handleUserQuery(cmd.query);
+            }
+          }
+
+          // 2. Synchronize shared AI State (Voice, Theme, API Key) across PC & Mobile
+          if (data.sharedState && data.sharedState.lastUpdated > lastSyncTimestampRef.current) {
+            const st = data.sharedState;
+            lastSyncTimestampRef.current = st.lastUpdated;
+
+            if (st.updatedBy !== deviceType) {
+              // Sync Voice Character
+              if (st.voiceCharacter && st.voiceCharacter !== voiceMode) {
+                changeVoiceMode(st.voiceCharacter, true);
+              }
+              // Sync Theme Color
+              if (st.themeColor && st.themeColor !== themeColor) {
+                changeTheme(st.themeColor, true);
+              }
+              // Sync Gemini API Key
+              if (st.geminiApiKey && st.geminiApiKey !== geminiApiKey) {
+                setGeminiApiKey(st.geminiApiKey);
+                if (typeof window !== "undefined") {
+                  localStorage.setItem("aegis_gemini_api_key", st.geminiApiKey);
+                  localStorage.setItem("monday_gemini_api_key", st.geminiApiKey);
+                }
+              }
             }
           }
         }
@@ -668,7 +723,7 @@ export default function JarvisOrb() {
     }, 1500);
 
     return () => clearInterval(interval);
-  }, [deviceType]);
+  }, [deviceType, voiceMode, themeColor, geminiApiKey]);
 
   // Hand Gestures Controls
   const stopGestures = useCallback(() => {

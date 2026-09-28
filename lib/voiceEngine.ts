@@ -444,6 +444,13 @@ export class VoiceEngine {
 
   public setVoiceCharacter(character: "friday" | "ultron" | "jarvis") {
     this.voiceCharacter = character;
+    if (typeof window !== "undefined" && (window as any).AndroidTTS && typeof (window as any).AndroidTTS.setVoiceCharacter === "function") {
+      try {
+        (window as any).AndroidTTS.setVoiceCharacter(character);
+      } catch (e) {
+        console.warn("AndroidTTS setVoiceCharacter error:", e);
+      }
+    }
     this.updateSelectedVoice();
   }
 
@@ -619,7 +626,8 @@ export class VoiceEngine {
       ) {
         try {
           this.setState("speaking");
-          const spoken = (window as any).AndroidTTS.speak(cleanText);
+          (window as any).AndroidTTS.setVoiceCharacter?.(this.voiceCharacter);
+          const spoken = (window as any).AndroidTTS.speak(cleanText, this.voiceCharacter);
           if (spoken) {
             const wordCount = cleanText.split(/\s+/).length;
             const estimatedDurationMs = Math.max(1800, (wordCount / 2.8) * 1000);

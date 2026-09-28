@@ -294,20 +294,91 @@ public class MainActivity extends BridgeActivity {
         enterPipMode();
     }
 
+    private String currentVoiceCharacter = "friday";
+
+    public void setVoiceCharacter(String character) {
+        if (character == null || character.trim().isEmpty()) return;
+        this.currentVoiceCharacter = character.toLowerCase().trim();
+        getSharedPreferences("monday_settings", MODE_PRIVATE)
+            .edit().putString("voice_character", currentVoiceCharacter).apply();
+        applyVoiceSettings();
+    }
+
+    private void applyVoiceSettings() {
+        if (tts == null || !isTtsReady) return;
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                java.util.Set<android.speech.tts.Voice> voices = tts.getVoices();
+                if (voices != null && !voices.isEmpty()) {
+                    android.speech.tts.Voice selectedVoice = null;
+                    if ("ultron".equals(currentVoiceCharacter)) {
+                        // Deep commanding male English voice
+                        for (android.speech.tts.Voice v : voices) {
+                            String name = v.getName().toLowerCase();
+                            if (v.getLocale().getLanguage().equals("en") && 
+                               (name.contains("male") || name.contains("tpd") || name.contains("david") || name.contains("george") || name.contains("guy"))) {
+                                selectedVoice = v;
+                                break;
+                            }
+                        }
+                    } else if ("jarvis".equals(currentVoiceCharacter)) {
+                        // Smooth natural British or cultured male voice
+                        for (android.speech.tts.Voice v : voices) {
+                            String name = v.getName().toLowerCase();
+                            if (v.getLocale().getLanguage().equals("en") && 
+                               (v.getLocale().getCountry().equalsIgnoreCase("GB") || name.contains("rjs") || name.contains("male") || name.contains("natural"))) {
+                                selectedVoice = v;
+                                break;
+                            }
+                        }
+                    } else { // friday
+                        // Crisp smart female English voice
+                        for (android.speech.tts.Voice v : voices) {
+                            String name = v.getName().toLowerCase();
+                            if (v.getLocale().getLanguage().equals("en") && 
+                               (name.contains("female") || name.contains("sfg") || name.contains("eva") || name.contains("zira") || name.contains("samantha"))) {
+                                selectedVoice = v;
+                                break;
+                            }
+                        }
+                    }
+                    if (selectedVoice != null) {
+                        tts.setVoice(selectedVoice);
+                    }
+                }
+            }
+
+            if ("ultron".equals(currentVoiceCharacter)) {
+                tts.setPitch(0.70f);   // Deep commanding metallic low pitch
+                tts.setSpeechRate(0.92f); // Authoritative pacing
+            } else if ("jarvis".equals(currentVoiceCharacter)) {
+                tts.setPitch(0.98f);   // Smooth natural cultured male pitch
+                tts.setSpeechRate(1.04f); // Dynamic crisp speed
+            } else { // friday
+                tts.setPitch(1.35f);   // High-frequency crisp female AI pitch
+                tts.setSpeechRate(1.02f); // Natural speed
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
     private void initTTS() {
         try {
+            SharedPreferences prefs = getSharedPreferences("monday_settings", MODE_PRIVATE);
+            currentVoiceCharacter = prefs.getString("voice_character", "friday");
+
             tts = new TextToSpeech(this, status -> {
                 if (status == TextToSpeech.SUCCESS) {
                     int result = tts.setLanguage(Locale.US);
                     if (result != TextToSpeech.LANG_MISSING_DATA && result != TextToSpeech.LANG_NOT_SUPPORTED) {
-                        tts.setPitch(1.4f);
-                        tts.setSpeechRate(1.0f);
                         isTtsReady = true;
+                        applyVoiceSettings();
 
                         if (pendingSpeechText != null) {
                             String textToSpeak = pendingSpeechText;
                             pendingSpeechText = null;
-                            speakNativeTTS(textToSpeak);
+                            speakNativeTTS(textToSpeak, currentVoiceCharacter);
                         }
                     }
                 }
@@ -317,8 +388,14 @@ public class MainActivity extends BridgeActivity {
         }
     }
 
-    private boolean speakNativeTTS(String text) {
+    private boolean speakNativeTTS(String text, String optionalCharacter) {
         try {
+            if (optionalCharacter != null && !optionalCharacter.trim().isEmpty()) {
+                setVoiceCharacter(optionalCharacter);
+            } else {
+                applyVoiceSettings();
+            }
+
             try {
                 AudioManager audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
                 if (audioManager != null) {
@@ -563,7 +640,22 @@ public class MainActivity extends BridgeActivity {
     public class TTSBridge {
         @JavascriptInterface
         public boolean speak(String text) {
-            return MainActivity.this.speakNativeTTS(text);
+            return MainActivity.this.speakNativeTTS(text, null);
+        }
+
+        @JavascriptInterface
+        public boolean speak(String text, String character) {
+            return MainActivity.this.speakNativeTTS(text, character);
+        }
+
+        @JavascriptInterface
+        public void setVoiceCharacter(String character) {
+            MainActivity.this.runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    MainActivity.this.setVoiceCharacter(character);
+                }
+            });
         }
 
         @JavascriptInterface

@@ -10,8 +10,26 @@ export interface CrossDeviceCommand {
   result?: string;
 }
 
+export interface SharedAiState {
+  voiceCharacter: "friday" | "ultron" | "jarvis";
+  themeColor: string;
+  sttLang: string;
+  geminiApiKey?: string;
+  lastUpdated: number;
+  updatedBy: "pc" | "mobile";
+}
+
 // In-memory real-time command queue for cross-device relay
 let commandQueue: CrossDeviceCommand[] = [];
+
+// Shared synchronized state between PC & Mobile (ONE unified AI)
+let sharedAiState: SharedAiState = {
+  voiceCharacter: "friday",
+  themeColor: "gold",
+  sttLang: "en-IN",
+  lastUpdated: Date.now(),
+  updatedBy: "pc",
+};
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -36,13 +54,27 @@ export async function GET(req: Request) {
     commandQueue = commandQueue.slice(-50);
   }
 
-  return NextResponse.json({ commands: pendingCommands });
+  return NextResponse.json({
+    commands: pendingCommands,
+    sharedState: sharedAiState,
+  });
 }
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { sourceDevice, targetDevice, query, action, result } = body;
+    const { sourceDevice, targetDevice, query, action, result, settings } = body;
+
+    // Handle synchronized AI state updates (Voice character, Theme, API Key)
+    if (action === "sync_settings" && settings) {
+      sharedAiState = {
+        ...sharedAiState,
+        ...settings,
+        lastUpdated: Date.now(),
+        updatedBy: sourceDevice || "pc",
+      };
+      return NextResponse.json({ success: true, sharedState: sharedAiState });
+    }
 
     // Handle posting execution feedback result back to source
     if (action === "report_result") {
@@ -68,7 +100,7 @@ export async function POST(req: Request) {
 
     commandQueue.push(newCmd);
 
-    return NextResponse.json({ success: true, command: newCmd });
+    return NextResponse.json({ success: true, command: newCmd, sharedState: sharedAiState });
   } catch (err) {
     return NextResponse.json({ error: "Failed to queue command" }, { status: 500 });
   }
