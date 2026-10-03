@@ -666,14 +666,14 @@ export class VoiceEngine {
         }
 
         if (this.voiceCharacter === "friday") {
-          utterance.pitch = 1.45; // Crisp, high-frequency female AI pitch (F.R.I.D.A.Y.)
+          utterance.pitch = 1.35; // Crisp, high-frequency female AI pitch (F.R.I.D.A.Y.)
           utterance.rate = 1.02;  // Elegant natural speed
         } else if (this.voiceCharacter === "ultron") {
-          utterance.pitch = 0.82; // Deep commanding Ultron metallic synth pitch
-          utterance.rate = 0.95;  // Measured authoritative speed
+          utterance.pitch = 0.65; // Deep commanding Ultron metallic synth pitch
+          utterance.rate = 0.90;  // Measured authoritative speed
         } else {
-          utterance.pitch = 1.03; // Smooth energetic 20-year-old JARVIS pitch
-          utterance.rate = 1.03;  // Energetic natural speed
+          utterance.pitch = 0.98; // Smooth energetic cultured JARVIS pitch
+          utterance.rate = 1.04;  // Energetic natural speed
         }
 
         let finished = false;

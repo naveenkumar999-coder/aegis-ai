@@ -25,6 +25,7 @@ import android.provider.MediaStore;
 import android.speech.RecognitionListener;
 import android.speech.RecognizerIntent;
 import android.speech.SpeechRecognizer;
+import android.speech.tts.TextToSpeech;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
@@ -37,8 +38,15 @@ import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Locale;
+import org.json.JSONObject;
 
 public class OverlayService extends Service {
     private static final String CHANNEL_ID = "monday_overlay_channel";
@@ -54,12 +62,17 @@ public class OverlayService extends Service {
     private FrameLayout circleView;
     private LinearLayout cardView;
     private EditText textInputField;
+    private TextView responseViewRef;
     private CyberOrb3DView orb3DViewRef;
 
     private SpeechRecognizer speechRecognizer;
     private boolean isListening = false;
     private Button talkBtnRef;
     private TextView titleRef;
+
+    private TextToSpeech overlayTts;
+    private boolean isOverlayTtsReady = false;
+    private String overlayVoiceCharacter = "friday";
 
     private int currentOrbSizeDp = 60;
     private float currentOpacity = 0.75f;
@@ -85,6 +98,7 @@ public class OverlayService extends Service {
         currentOpacity = prefs.getFloat("orb_opacity", 0.75f);
         startForegroundIfNeeded();
         createOverlay();
+        initOverlayTts();
         initSpeechRecognizer();
     }
 
@@ -100,6 +114,13 @@ public class OverlayService extends Service {
                 if (intent.hasExtra("orb_opacity")) {
                     float opacity = intent.getFloatExtra("orb_opacity", currentOpacity);
                     setOrbOpacity(opacity);
+                }
+            } else if ("UPDATE_VOICE_CHARACTER".equals(action)) {
+                if (intent.hasExtra("voice_character")) {
+                    overlayVoiceCharacter = intent.getStringExtra("voice_character");
+                    if (overlayTts != null && isOverlayTtsReady) {
+                        MainActivity.configureTTSVoice(overlayTts, overlayVoiceCharacter);
+                    }
                 }
             } else if ("STOP_OVERLAY".equals(action)) {
                 stopOverlaySelf();
@@ -129,7 +150,9 @@ public class OverlayService extends Service {
                         .build();
 
                 if (Build.VERSION.SDK_INT >= 34) {
-                    startForeground(NOTIFICATION_ID, notification, android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE);
+                    startForeground(NOTIFICATION_ID, notification,
+                            android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE |
+                            android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE);
                 } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                     startForeground(NOTIFICATION_ID, notification, 0);
                 } else {
@@ -226,6 +249,16 @@ public class OverlayService extends Service {
 
         cardView.addView(header);
 
+        // Live AI Response / Status Display
+        TextView responseView = new TextView(this);
+        responseView.setText("Ready for directive, Boss!");
+        responseView.setTextColor(Color.parseColor("#ffcc66"));
+        responseView.setTextSize(11);
+        responseView.setGravity(Gravity.CENTER);
+        responseView.setPadding(0, 0, 0, dpToPx(6));
+        responseViewRef = responseView;
+        cardView.addView(responseView);
+
         // Text Input Row
         LinearLayout inputRow = new LinearLayout(this);
         inputRow.setOrientation(LinearLayout.HORIZONTAL);
@@ -275,9 +308,9 @@ public class OverlayService extends Service {
         sendBtn.setOnClickListener(v -> {
             if (textInputField != null) {
                 String query = textInputField.getText().toString().trim();
+                textInputField.setText("");
                 if (!query.isEmpty()) {
                     handleTextSubmit(query);
-                    textInputField.setText("");
                 }
             }
         });
@@ -471,6 +504,10 @@ public class OverlayService extends Service {
             lastOrbX = params.x;
             lastOrbY = params.y;
 
+            if (textInputField != null) {
+                textInputField.setText("");
+            }
+
             circleView.setVisibility(View.GONE);
             cardView.setVisibility(View.VISIBLE);
 
@@ -489,8 +526,12 @@ public class OverlayService extends Service {
             }
         } else {
             stopVoiceListening();
+            if (overlayTts != null && overlayTts.isSpeaking()) {
+                overlayTts.stop();
+            }
             // Dismiss soft keyboard when minimizing back to edge orb
             if (textInputField != null) {
+                textInputField.setText("");
                 InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
                 if (imm != null) {
                     imm.hideSoftInputFromWindow(textInputField.getWindowToken(), 0);
@@ -519,95 +560,143 @@ public class OverlayService extends Service {
         }
     }
 
-    private void initSpeechRecognizer() {
+    private void initOverlayTts() {
         try {
-            if (speechRecognizer != null) {
-                try {
-                    speechRecognizer.destroy();
-                } catch (Exception ignored) {}
-                speechRecognizer = null;
-            }
-            if (SpeechRecognizer.isRecognitionAvailable(this)) {
-                speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this);
-                speechRecognizer.setRecognitionListener(new RecognitionListener() {
-                    @Override
-                    public void onReadyForSpeech(Bundle params) {
-                        isListening = true;
-                        updateListeningUi(true, "🔴 Listening... (Speak now)");
-                    }
+            SharedPreferences prefs = getSharedPreferences("monday_settings", MODE_PRIVATE);
+            overlayVoiceCharacter = prefs.getString("voice_character", "friday");
+            overlayTts = new TextToSpeech(this, status -> {
+                if (status == TextToSpeech.SUCCESS) {
+                    isOverlayTtsReady = true;
+                    MainActivity.configureTTSVoice(overlayTts, overlayVoiceCharacter);
+                }
+            });
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
 
-                    @Override
-                    public void onBeginningOfSpeech() {
-                        updateListeningUi(true, "🎙️ Hearing your voice...");
-                    }
-
-                    @Override
-                    public void onRmsChanged(float rmsdB) {}
-
-                    @Override
-                    public void onBufferReceived(byte[] buffer) {}
-
-                    @Override
-                    public void onEndOfSpeech() {
-                        updateListeningUi(true, "⏳ Processing directive...");
-                    }
-
-                    @Override
-                    public void onError(int error) {
-                        isListening = false;
-                        updateListeningUi(false, null);
-                        String msg = "Could not hear audio";
-                        if (error == SpeechRecognizer.ERROR_NO_MATCH || error == SpeechRecognizer.ERROR_SPEECH_TIMEOUT) {
-                            msg = "No speech detected. Tap TALK to retry";
-                        } else if (error == SpeechRecognizer.ERROR_NETWORK || error == SpeechRecognizer.ERROR_NETWORK_TIMEOUT) {
-                            msg = "Network issue with voice recognition";
-                        } else if (error == SpeechRecognizer.ERROR_AUDIO) {
-                            msg = "Microphone audio error";
-                        }
-                        if (textInputField != null) {
-                            textInputField.setHint(msg);
-                        }
-                    }
-
-                    @Override
-                    public void onResults(Bundle results) {
-                        isListening = false;
-                        updateListeningUi(false, null);
-                        if (results != null) {
-                            ArrayList<String> matches = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
-                            if (matches != null && !matches.isEmpty()) {
-                                String spoken = matches.get(0).trim();
-                                if (!spoken.isEmpty()) {
-                                    if (textInputField != null) {
-                                        textInputField.setText(spoken);
-                                    }
-                                    handleTextSubmit(spoken);
-                                }
-                            }
-                        }
-                    }
-
-                    @Override
-                    public void onPartialResults(Bundle partialResults) {
-                        if (partialResults != null) {
-                            ArrayList<String> partial = partialResults.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
-                            if (partial != null && !partial.isEmpty()) {
-                                String text = partial.get(0);
-                                if (textInputField != null) {
-                                    textInputField.setText(text);
-                                    textInputField.setSelection(text.length());
-                                }
-                            }
-                        }
-                    }
-
-                    @Override
-                    public void onEvent(int eventType, Bundle params) {}
-                });
+    private void speakOverlay(String text) {
+        if (text == null || text.trim().isEmpty()) return;
+        try {
+            if (overlayTts != null && isOverlayTtsReady) {
+                MainActivity.configureTTSVoice(overlayTts, overlayVoiceCharacter);
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                    Bundle b = new Bundle();
+                    b.putInt(TextToSpeech.Engine.KEY_PARAM_STREAM, android.media.AudioManager.STREAM_MUSIC);
+                    overlayTts.speak(text, TextToSpeech.QUEUE_FLUSH, b, "OVERLAY_TTS_ID");
+                } else {
+                    java.util.HashMap<String, String> b = new java.util.HashMap<>();
+                    b.put(TextToSpeech.Engine.KEY_PARAM_STREAM, String.valueOf(android.media.AudioManager.STREAM_MUSIC));
+                    overlayTts.speak(text, TextToSpeech.QUEUE_FLUSH, b);
+                }
             }
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    private void initSpeechRecognizer() {
+        new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
+            try {
+                if (speechRecognizer != null) {
+                    try {
+                        speechRecognizer.destroy();
+                    } catch (Exception ignored) {}
+                    speechRecognizer = null;
+                }
+                if (SpeechRecognizer.isRecognitionAvailable(OverlayService.this)) {
+                    speechRecognizer = SpeechRecognizer.createSpeechRecognizer(OverlayService.this);
+                    speechRecognizer.setRecognitionListener(new RecognitionListener() {
+                        @Override
+                        public void onReadyForSpeech(Bundle params) {
+                            isListening = true;
+                            updateListeningUi(true, "🔴 Listening... (Speak now)");
+                        }
+
+                        @Override
+                        public void onBeginningOfSpeech() {
+                            updateListeningUi(true, "🎙️ Hearing your voice...");
+                        }
+
+                        @Override
+                        public void onRmsChanged(float rmsdB) {}
+
+                        @Override
+                        public void onBufferReceived(byte[] buffer) {}
+
+                        @Override
+                        public void onEndOfSpeech() {
+                            updateListeningUi(true, "⏳ Processing directive...");
+                        }
+
+                        @Override
+                        public void onError(int error) {
+                            isListening = false;
+                            updateListeningUi(false, null);
+                            String msg = "Could not hear audio";
+                            if (error == SpeechRecognizer.ERROR_NO_MATCH || error == SpeechRecognizer.ERROR_SPEECH_TIMEOUT) {
+                                msg = "No speech detected. Tap TALK to retry";
+                            } else if (error == SpeechRecognizer.ERROR_NETWORK || error == SpeechRecognizer.ERROR_NETWORK_TIMEOUT) {
+                                msg = "Network issue with voice recognition";
+                            } else if (error == SpeechRecognizer.ERROR_AUDIO) {
+                                msg = "Microphone audio error";
+                            }
+                            if (responseViewRef != null) {
+                                responseViewRef.setText(msg);
+                            }
+                            if (textInputField != null) {
+                                textInputField.setHint(msg);
+                            }
+                            if (speechRecognizer != null) {
+                                try { speechRecognizer.destroy(); } catch (Exception ignored) {}
+                                speechRecognizer = null;
+                            }
+                        }
+
+                        @Override
+                        public void onResults(Bundle results) {
+                            isListening = false;
+                            updateListeningUi(false, null);
+                            String spoken = "";
+                            if (results != null) {
+                                ArrayList<String> matches = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
+                                if (matches != null && !matches.isEmpty()) {
+                                    spoken = matches.get(0).trim();
+                                }
+                            }
+                            if (speechRecognizer != null) {
+                                try { speechRecognizer.destroy(); } catch (Exception ignored) {}
+                                speechRecognizer = null;
+                            }
+                            if (!spoken.isEmpty()) {
+                                if (textInputField != null) {
+                                    textInputField.setText("");
+                                }
+                                handleTextSubmit(spoken);
+                            }
+                        }
+
+                        @Override
+                        public void onPartialResults(Bundle partialResults) {
+                            if (partialResults != null) {
+                                ArrayList<String> partial = partialResults.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
+                                if (partial != null && !partial.isEmpty()) {
+                                    String text = partial.get(0);
+                                    if (responseViewRef != null) {
+                                        responseViewRef.setText("🎙️ " + text);
+                                    }
+                                }
+                            }
+                        }
+
+                        @Override
+                        public void onEvent(int eventType, Bundle params) {}
+                    });
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        });
     }
 
     private void toggleVoiceListening() {
@@ -631,42 +720,65 @@ public class OverlayService extends Service {
             }
         }
 
-        if (speechRecognizer == null) {
-            initSpeechRecognizer();
-        }
-
-        if (speechRecognizer == null) {
-            Toast.makeText(this, "Speech recognition not available on device", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
         try {
-            Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
-            intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
-            intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault());
-            intent.putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true);
-            intent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3);
-            intent.putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, getPackageName());
+            android.media.AudioManager am = (android.media.AudioManager) getSystemService(Context.AUDIO_SERVICE);
+            if (am != null) {
+                am.requestAudioFocus(null, android.media.AudioManager.STREAM_MUSIC, android.media.AudioManager.AUDIOFOCUS_GAIN_TRANSIENT);
+            }
+        } catch (Exception ignored) {}
 
-            speechRecognizer.startListening(intent);
-            isListening = true;
-            updateListeningUi(true, "🔴 Listening... (Speak now)");
-        } catch (Exception e) {
-            e.printStackTrace();
-            isListening = false;
-            updateListeningUi(false, null);
-            Toast.makeText(this, "Voice error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+        if (overlayTts != null && overlayTts.isSpeaking()) {
+            overlayTts.stop();
         }
+
+        new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
+            try {
+                if (speechRecognizer != null) {
+                    try { speechRecognizer.destroy(); } catch (Exception ignored) {}
+                    speechRecognizer = null;
+                }
+
+                initSpeechRecognizer();
+
+                new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+                    if (speechRecognizer != null) {
+                        try {
+                            Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+                            intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+                            intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault());
+                            intent.putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true);
+                            intent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3);
+                            intent.putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, getPackageName());
+
+                            speechRecognizer.startListening(intent);
+                            isListening = true;
+                            updateListeningUi(true, "🔴 Listening... (Speak now)");
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                            isListening = false;
+                            updateListeningUi(false, null);
+                            Toast.makeText(OverlayService.this, "Voice error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                        }
+                    }
+                }, 120);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        });
     }
 
     private void stopVoiceListening() {
-        if (speechRecognizer != null && isListening) {
-            try {
-                speechRecognizer.stopListening();
-            } catch (Exception ignored) {}
-        }
-        isListening = false;
-        updateListeningUi(false, null);
+        new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
+            if (speechRecognizer != null) {
+                try {
+                    speechRecognizer.stopListening();
+                    speechRecognizer.destroy();
+                } catch (Exception ignored) {}
+                speechRecognizer = null;
+            }
+            isListening = false;
+            updateListeningUi(false, null);
+        });
     }
 
     private void updateListeningUi(boolean listening, String statusText) {
@@ -710,18 +822,29 @@ public class OverlayService extends Service {
         String q = query.trim();
         String lower = q.toLowerCase();
 
+        if (textInputField != null) {
+            textInputField.setText("");
+        }
+
         // Direct device commands handled instantly without leaving current app
         if (lower.contains("whatsapp")) {
             Toast.makeText(this, "Opening WhatsApp, Boss...", Toast.LENGTH_SHORT).show();
+            speakOverlay("Opening WhatsApp, Boss!");
             openWhatsApp();
             toggleExpand();
             return;
         } else if (lower.contains("flash") || lower.contains("torch")) {
             toggleTorch();
-            Toast.makeText(this, isTorchOn ? "Flashlight turned ON" : "Flashlight turned OFF", Toast.LENGTH_SHORT).show();
+            String msg = isTorchOn ? "Flashlight turned ON, Boss!" : "Flashlight turned OFF, Boss!";
+            Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
+            if (responseViewRef != null) {
+                responseViewRef.setText(msg);
+            }
+            speakOverlay(msg);
             return;
         } else if (lower.contains("camera")) {
             Toast.makeText(this, "Opening Camera, Boss...", Toast.LENGTH_SHORT).show();
+            speakOverlay("Opening Camera, Boss!");
             try {
                 Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
                 intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
@@ -731,22 +854,80 @@ public class OverlayService extends Service {
             return;
         } else if (lower.contains("youtube")) {
             Toast.makeText(this, "Opening YouTube, Boss...", Toast.LENGTH_SHORT).show();
+            speakOverlay("Opening YouTube, Boss!");
             launchApp("com.google.android.youtube");
             toggleExpand();
             return;
         }
 
-        // Forward AI query to MainActivity
-        try {
-            Intent intent = new Intent(this, MainActivity.class);
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-            intent.putExtra("user_query", q);
-            startActivity(intent);
-        } catch (Exception e) {
-            e.printStackTrace();
+        // Keep popup open and handle AI directive directly through popup!
+        if (responseViewRef != null) {
+            responseViewRef.setText("⚡ Processing: \"" + q + "\"...");
         }
-        Toast.makeText(this, "Directive: " + q, Toast.LENGTH_SHORT).show();
-        toggleExpand();
+
+        new Thread(() -> {
+            try {
+                SharedPreferences prefs = getSharedPreferences("monday_settings", MODE_PRIVATE);
+                String savedIp = prefs.getString("pc_ip", "10.250.173.50");
+                String cloudUrl = "https://aegis-ai-git-main-naveenkumar999-coders-projects.vercel.app";
+
+                String[] hostCandidates = new String[]{
+                    "http://127.0.0.1:3000",
+                    "http://localhost:3000",
+                    "http://" + savedIp + ":3000",
+                    "http://10.250.173.50:3000",
+                    cloudUrl
+                };
+
+                String responseText = null;
+                for (String base : hostCandidates) {
+                    try {
+                        URL url = new URL(base + "/api/chat");
+                        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                        conn.setRequestMethod("POST");
+                        conn.setRequestProperty("Content-Type", "application/json");
+                        conn.setConnectTimeout(2500);
+                        conn.setReadTimeout(5000);
+                        conn.setDoOutput(true);
+
+                        JSONObject payload = new JSONObject();
+                        payload.put("prompt", q);
+                        byte[] bytes = payload.toString().getBytes(StandardCharsets.UTF_8);
+                        conn.getOutputStream().write(bytes);
+
+                        if (conn.getResponseCode() == 200) {
+                            InputStream is = conn.getInputStream();
+                            BufferedReader reader = new BufferedReader(new InputStreamReader(is));
+                            StringBuilder sb = new StringBuilder();
+                            String line;
+                            while ((line = reader.readLine()) != null) {
+                                sb.append(line);
+                            }
+                            reader.close();
+                            JSONObject resObj = new JSONObject(sb.toString());
+                            if (resObj.has("response")) {
+                                responseText = resObj.getString("response");
+                                break;
+                            }
+                        }
+                    } catch (Exception ignored) {}
+                }
+
+                if (responseText == null) {
+                    responseText = "Directive registered, Boss!";
+                }
+
+                final String finalReply = responseText;
+                new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
+                    if (responseViewRef != null) {
+                        responseViewRef.setText(finalReply);
+                    }
+                    speakOverlay(finalReply);
+                });
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+        }).start();
     }
 
     private void stopOverlaySelf() {
@@ -976,6 +1157,13 @@ public class OverlayService extends Service {
     @Override
     public void onDestroy() {
         stopVoiceListening();
+        if (overlayTts != null) {
+            try {
+                overlayTts.stop();
+                overlayTts.shutdown();
+            } catch (Exception ignored) {}
+            overlayTts = null;
+        }
         if (speechRecognizer != null) {
             try {
                 speechRecognizer.destroy();

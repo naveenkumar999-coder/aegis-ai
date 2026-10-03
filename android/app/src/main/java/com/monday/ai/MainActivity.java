@@ -149,11 +149,12 @@ public class MainActivity extends BridgeActivity {
             String cloudUrl = "https://aegis-ai-git-main-naveenkumar999-coders-projects.vercel.app";
 
             String[] candidates = new String[]{
-                cloudUrl,
+                "http://127.0.0.1:3000",
+                "http://localhost:3000",
                 "http://" + savedIp + ":3000",
-                "http://192.168.43.10:3000",
                 "http://10.250.173.50:3000",
-                "http://localhost:3000"
+                "http://192.168.43.10:3000",
+                cloudUrl
             };
 
             String workingUrl = null;
@@ -302,65 +303,141 @@ public class MainActivity extends BridgeActivity {
         getSharedPreferences("monday_settings", MODE_PRIVATE)
             .edit().putString("voice_character", currentVoiceCharacter).apply();
         applyVoiceSettings();
+
+        try {
+            Intent intent = new Intent(this, OverlayService.class);
+            intent.setAction("UPDATE_VOICE_CHARACTER");
+            intent.putExtra("voice_character", currentVoiceCharacter);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(intent);
+            } else {
+                startService(intent);
+            }
+        } catch (Exception ignored) {}
     }
 
-    private void applyVoiceSettings() {
-        if (tts == null || !isTtsReady) return;
+    public static void configureTTSVoice(TextToSpeech ttsInstance, String character) {
+        if (ttsInstance == null) return;
         try {
+            String charLower = character != null ? character.toLowerCase().trim() : "friday";
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                java.util.Set<android.speech.tts.Voice> voices = tts.getVoices();
+                java.util.Set<android.speech.tts.Voice> voices = ttsInstance.getVoices();
                 if (voices != null && !voices.isEmpty()) {
                     android.speech.tts.Voice selectedVoice = null;
-                    if ("ultron".equals(currentVoiceCharacter)) {
-                        // Deep commanding male English voice
+                    if ("ultron".equals(charLower)) {
                         for (android.speech.tts.Voice v : voices) {
-                            String name = v.getName().toLowerCase();
-                            if (v.getLocale().getLanguage().equals("en") && 
-                               (name.contains("male") || name.contains("tpd") || name.contains("david") || name.contains("george") || name.contains("guy"))) {
-                                selectedVoice = v;
-                                break;
+                            if (v.getLocale() != null && v.getLocale().getLanguage().startsWith("en")) {
+                                if (isMaleVoice(v) && !v.isNetworkConnectionRequired()) {
+                                    selectedVoice = v;
+                                    break;
+                                }
                             }
                         }
-                    } else if ("jarvis".equals(currentVoiceCharacter)) {
-                        // Smooth natural British or cultured male voice
+                        if (selectedVoice == null) {
+                            for (android.speech.tts.Voice v : voices) {
+                                if (v.getLocale() != null && v.getLocale().getLanguage().startsWith("en") && isMaleVoice(v)) {
+                                    selectedVoice = v;
+                                    break;
+                                }
+                            }
+                        }
+                    } else if ("jarvis".equals(charLower)) {
                         for (android.speech.tts.Voice v : voices) {
-                            String name = v.getName().toLowerCase();
-                            if (v.getLocale().getLanguage().equals("en") && 
-                               (v.getLocale().getCountry().equalsIgnoreCase("GB") || name.contains("rjs") || name.contains("male") || name.contains("natural"))) {
-                                selectedVoice = v;
-                                break;
+                            if (v.getLocale() != null && v.getLocale().getLanguage().startsWith("en")) {
+                                String country = v.getLocale().getCountry();
+                                if (("GB".equalsIgnoreCase(country) || v.getName().toLowerCase().contains("rjs")) && isMaleVoice(v)) {
+                                    selectedVoice = v;
+                                    break;
+                                }
+                            }
+                        }
+                        if (selectedVoice == null) {
+                            for (android.speech.tts.Voice v : voices) {
+                                if (v.getLocale() != null && v.getLocale().getLanguage().startsWith("en") && isMaleVoice(v)) {
+                                    selectedVoice = v;
+                                    break;
+                                }
                             }
                         }
                     } else { // friday
-                        // Crisp smart female English voice
                         for (android.speech.tts.Voice v : voices) {
-                            String name = v.getName().toLowerCase();
-                            if (v.getLocale().getLanguage().equals("en") && 
-                               (name.contains("female") || name.contains("sfg") || name.contains("eva") || name.contains("zira") || name.contains("samantha"))) {
-                                selectedVoice = v;
-                                break;
+                            if (v.getLocale() != null && v.getLocale().getLanguage().startsWith("en")) {
+                                if (isFemaleVoice(v) && !v.isNetworkConnectionRequired()) {
+                                    selectedVoice = v;
+                                    break;
+                                }
+                            }
+                        }
+                        if (selectedVoice == null) {
+                            for (android.speech.tts.Voice v : voices) {
+                                if (v.getLocale() != null && v.getLocale().getLanguage().startsWith("en") && isFemaleVoice(v)) {
+                                    selectedVoice = v;
+                                    break;
+                                }
                             }
                         }
                     }
+
                     if (selectedVoice != null) {
-                        tts.setVoice(selectedVoice);
+                        ttsInstance.setVoice(selectedVoice);
                     }
                 }
             }
 
-            if ("ultron".equals(currentVoiceCharacter)) {
-                tts.setPitch(0.70f);   // Deep commanding metallic low pitch
-                tts.setSpeechRate(0.92f); // Authoritative pacing
-            } else if ("jarvis".equals(currentVoiceCharacter)) {
-                tts.setPitch(0.98f);   // Smooth natural cultured male pitch
-                tts.setSpeechRate(1.04f); // Dynamic crisp speed
+            if ("ultron".equals(charLower)) {
+                ttsInstance.setPitch(0.52f);     // Deep metallic commanding baritone
+                ttsInstance.setSpeechRate(0.88f); // Measured authoritative pacing
+            } else if ("jarvis".equals(charLower)) {
+                ttsInstance.setPitch(0.94f);     // Smooth cultured British/male pitch
+                ttsInstance.setSpeechRate(1.05f); // Dynamic crisp speed
             } else { // friday
-                tts.setPitch(1.35f);   // High-frequency crisp female AI pitch
-                tts.setSpeechRate(1.02f); // Natural speed
+                ttsInstance.setPitch(1.30f);     // High-frequency crisp female AI pitch
+                ttsInstance.setSpeechRate(1.02f); // Natural fluid speed
             }
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    public static boolean isMaleVoice(android.speech.tts.Voice v) {
+        if (v == null) return false;
+        if (v.getFeatures() != null) {
+            for (String f : v.getFeatures()) {
+                if (f != null && f.toLowerCase().contains("male") && !f.toLowerCase().contains("female")) {
+                    return true;
+                }
+            }
+        }
+        String n = v.getName().toLowerCase();
+        if (n.contains("#male") || n.contains("-male") || n.contains("_male") || n.contains("male_") || n.contains("male-")) {
+            return true;
+        }
+        return n.contains("tpd") || n.contains("iom") || n.contains("enc") || n.contains("end") ||
+               n.contains("auc") || n.contains("rjs") || n.contains("gbb") || n.contains("guy") ||
+               n.contains("david") || n.contains("george") || n.contains("mark");
+    }
+
+    public static boolean isFemaleVoice(android.speech.tts.Voice v) {
+        if (v == null) return false;
+        if (v.getFeatures() != null) {
+            for (String f : v.getFeatures()) {
+                if (f != null && f.toLowerCase().contains("female")) {
+                    return true;
+                }
+            }
+        }
+        String n = v.getName().toLowerCase();
+        if (n.contains("#female") || n.contains("-female") || n.contains("_female") || n.contains("female_") || n.contains("female-")) {
+            return true;
+        }
+        return n.contains("sfg") || n.contains("iol") || n.contains("cxx") || n.contains("ene") ||
+               n.contains("aub") || n.contains("fis") || n.contains("gba") || n.contains("zira") ||
+               n.contains("eva") || n.contains("samantha") || n.contains("hazel");
+    }
+
+    private void applyVoiceSettings() {
+        if (tts == null || !isTtsReady) return;
+        configureTTSVoice(tts, currentVoiceCharacter);
     }
 
     private void initTTS() {
