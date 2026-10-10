@@ -5,6 +5,8 @@ import { createOrbScene, type OrbSceneApi } from "@/lib/orbScene";
 import { HandTracker, type TrackerStatus } from "@/lib/handTracker";
 import { VoiceEngine, type AiState } from "@/lib/voiceEngine";
 import { AiBrain, type ToolResult } from "@/lib/aiBrain";
+import { MiniWhatsAppCallLogs } from "@/components/MiniWhatsAppCallLogs";
+import { getCallSessions } from "@/lib/callLogStore";
 
 type CameraState = "off" | "starting" | "on" | "error";
 
@@ -85,6 +87,20 @@ export default function JarvisOrb() {
   const [isPopupMode, setIsPopupMode] = useState<boolean>(false);
   const [overlaySizePercent, setOverlaySizePercent] = useState<number>(100);
   const [overlayOpacityPercent, setOverlayOpacityPercent] = useState<number>(75);
+  const [showCallLogs, setShowCallLogs] = useState<boolean>(false);
+  const [unreadCallCount, setUnreadCallCount] = useState<number>(0);
+
+  useEffect(() => {
+    const checkUnread = () => {
+      try {
+        const list = getCallSessions();
+        setUnreadCallCount(list.filter((s) => s.unread).length);
+      } catch {}
+    };
+    checkUnread();
+    const interval = setInterval(checkUnread, 3000);
+    return () => clearInterval(interval);
+  }, [showCallLogs]);
 
   const THEME_OPTIONS = [
     { id: "gold", name: "Gold", dotClass: "gold" },
@@ -1056,6 +1072,38 @@ export default function JarvisOrb() {
             <button
               type="button"
               className="hud-btn mini-btn"
+              style={{
+                position: "relative",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "5px",
+                borderColor: unreadCallCount > 0 ? "rgba(37, 211, 102, 0.7)" : undefined,
+                ...(isPopupMode ? { height: "30px", padding: "0 8px", fontSize: "10px" } : {}),
+              }}
+              onClick={() => setShowCallLogs(true)}
+              title="Open WhatsApp Call Transcripts & Intercept Logs"
+            >
+              <span>💬</span>
+              <span>{isPopupMode ? "" : "CALL LOGS"}</span>
+              {unreadCallCount > 0 && (
+                <span
+                  style={{
+                    backgroundColor: "#25D366",
+                    color: "#0B141A",
+                    fontSize: "9px",
+                    fontWeight: 800,
+                    padding: "1px 5px",
+                    borderRadius: "10px",
+                    lineHeight: "1.2",
+                  }}
+                >
+                  {unreadCallCount}
+                </span>
+              )}
+            </button>
+            <button
+              type="button"
+              className="hud-btn mini-btn"
               style={isPopupMode ? { height: "30px", padding: "0 8px", fontSize: "10px" } : {}}
               onClick={() => setShowSettings(true)}
             >
@@ -1250,6 +1298,20 @@ export default function JarvisOrb() {
                 </div>
               </div>
             </div>
+          )}
+
+          {/* Mini WhatsApp Call Logs Slot */}
+          {showCallLogs && (
+            <MiniWhatsAppCallLogs
+              onClose={() => {
+                setShowCallLogs(false);
+                try {
+                  const s = getCallSessions();
+                  setUnreadCallCount(s.filter((x) => x.unread).length);
+                } catch {}
+              }}
+              isMobile={isPopupMode}
+            />
           )}
 
           {/* Controls Hint */}

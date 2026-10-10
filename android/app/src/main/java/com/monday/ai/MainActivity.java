@@ -39,16 +39,34 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED ||
-                checkSelfPermission(android.Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
-                requestPermissions(new String[]{
-                    android.Manifest.permission.RECORD_AUDIO,
-                    android.Manifest.permission.CAMERA
-                }, 1001);
+            java.util.List<String> perms = new java.util.ArrayList<>();
+            if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+                perms.add(android.Manifest.permission.RECORD_AUDIO);
+            }
+            if (checkSelfPermission(android.Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+                perms.add(android.Manifest.permission.CAMERA);
+            }
+            if (checkSelfPermission(android.Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED) {
+                perms.add(android.Manifest.permission.READ_PHONE_STATE);
+            }
+            if (checkSelfPermission(android.Manifest.permission.READ_CALL_LOG) != PackageManager.PERMISSION_GRANTED) {
+                perms.add(android.Manifest.permission.READ_CALL_LOG);
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                if (checkSelfPermission(android.Manifest.permission.ANSWER_PHONE_CALLS) != PackageManager.PERMISSION_GRANTED) {
+                    perms.add(android.Manifest.permission.ANSWER_PHONE_CALLS);
+                }
+            }
+            if (checkSelfPermission(android.Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
+                perms.add(android.Manifest.permission.READ_CONTACTS);
+            }
+            if (!perms.isEmpty()) {
+                requestPermissions(perms.toArray(new String[0]), 1001);
             }
         }
         initTTS();
         registerBridge();
+        registerCallLogBroadcastReceiver();
         startOverlayService();
         checkServerAndConnect();
         handleIncomingIntent(getIntent());
@@ -63,6 +81,16 @@ public class MainActivity extends BridgeActivity {
 
     private void handleIncomingIntent(Intent intent) {
         if (intent != null) {
+            if (intent.getBooleanExtra("open_call_logs", false)) {
+                runOnUiThread(() -> {
+                    if (bridge != null && bridge.getWebView() != null) {
+                        bridge.getWebView().evaluateJavascript(
+                            "if (window.openAegisCallLogs) { window.openAegisCallLogs(); } else { window._pendingOpenCallLogs = true; }",
+                            null
+                        );
+                    }
+                });
+            }
             if (intent.hasExtra("user_query")) {
                 String q = intent.getStringExtra("user_query");
                 if (q != null && !q.trim().isEmpty()) {
@@ -604,6 +632,25 @@ public class MainActivity extends BridgeActivity {
         }
 
         @JavascriptInterface
+        public void simulateIncomingCallInterception() {
+            MainActivity.this.runOnUiThread(() -> {
+                AegisCallHandler.getInstance(MainActivity.this).simulateCallInterception();
+            });
+        }
+
+        @JavascriptInterface
+        public String getCallSessionsJson() {
+            SharedPreferences prefs = MainActivity.this.getSharedPreferences("aegis_call_prefs", MODE_PRIVATE);
+            return prefs.getString("call_sessions", "[]");
+        }
+
+        @JavascriptInterface
+        public void saveCallSessionsJson(String json) {
+            SharedPreferences prefs = MainActivity.this.getSharedPreferences("aegis_call_prefs", MODE_PRIVATE);
+            prefs.edit().putString("call_sessions", json).apply();
+        }
+
+        @JavascriptInterface
         public boolean launchApp(String appName) {
             try {
                 String name = appName.toLowerCase().trim();
@@ -778,8 +825,50 @@ public class MainActivity extends BridgeActivity {
         }
     }
 
+    private android.content.BroadcastReceiver callLogReceiver;
+
+    private void registerCallLogBroadcastReceiver() {
+        callLogReceiver = new android.content.BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                if (intent != null && intent.hasExtra("session_json")) {
+                    String json = intent.getStringExtra("session_json");
+                    if (json != null && bridge != null && bridge.getWebView() != null) {
+                        runOnUiThread(() -> {
+                            bridge.getWebView().evaluateJavascript(
+                                "if (window.dispatchEvent) { window.dispatchEvent(new CustomEvent('aegis-call-intercepted', { detail: " + json + " })); }",
+                                null
+                            );
+                        });
+                    }
+                }
+            }
+        };
+
+        android.content.IntentFilter filter = new android.content.IntentFilter("com.monday.ai.CALL_LOG_UPDATED");
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(callLogReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
+        } else {
+            registerReceiver(callLogReceiver, filter);
+        }
+    }
+
+    public static void notifyCallLogged(Context context, String jsonSession) {
+        if (context == null || jsonSession == null) return;
+        try {
+            Intent intent = new Intent("com.monday.ai.CALL_LOG_UPDATED");
+            intent.putExtra("session_json", jsonSession);
+            context.sendBroadcast(intent);
+        } catch (Exception ignored) {}
+    }
+
     @Override
     public void onDestroy() {
+        if (callLogReceiver != null) {
+            try {
+                unregisterReceiver(callLogReceiver);
+            } catch (Exception ignored) {}
+        }
         if (tts != null) {
             tts.stop();
             tts.shutdown();
