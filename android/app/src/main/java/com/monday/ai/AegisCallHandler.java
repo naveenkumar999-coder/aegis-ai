@@ -218,10 +218,12 @@ public class AegisCallHandler {
     }
 
     private void startAiVoiceDialogue(String number, String name) {
-        // Request Audio Focus for speech
+        // Ensure speakerphone is OFF and microphone is muted so caller cannot hear the user
         try {
             AudioManager am = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
             if (am != null) {
+                am.setSpeakerphoneOn(false);
+                am.setMicrophoneMute(true);
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     AudioAttributes attrs = new AudioAttributes.Builder()
                             .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
@@ -237,7 +239,7 @@ public class AegisCallHandler {
             }
         } catch (Exception ignored) {}
 
-        String greeting = "Greetings. I am AEGIS, AI assistant for Boss Nani. Boss is currently unavailable. Please state your name and message after the tone.";
+        String greeting = "Boss is busy right now. If you're okay, please leave a voice recording.";
 
         if (callTts != null && isTtsReady) {
             Bundle params = new Bundle();
@@ -245,10 +247,10 @@ public class AegisCallHandler {
             callTts.speak(greeting, TextToSpeech.QUEUE_FLUSH, params, "AEGIS_CALL_GREETING");
         }
 
-        // After greeting delay (~4.5s), start listening to caller
+        // After greeting finishes (~3.8s), start listening/recording caller
         mainHandler.postDelayed(() -> {
             listenToCallerVoice(number, name, greeting);
-        }, 4500L);
+        }, 3800L);
     }
 
     private void listenToCallerVoice(String number, String name, String greetingText) {
@@ -283,7 +285,7 @@ public class AegisCallHandler {
                         public void onError(int error) {
                             Log.w(TAG, "Caller STT error code: " + error);
                             // Fallback default caller message if speech recognition timed out or silence
-                            String callerText = "Caller left a brief message: Please call back as soon as you are free.";
+                            String callerText = "Caller left a voice message: Please call back as soon as you are free.";
                             finishCallSession(number, name, greetingText, callerText);
                         }
 
@@ -292,7 +294,7 @@ public class AegisCallHandler {
                             ArrayList<String> matches = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
                             String callerText = (matches != null && !matches.isEmpty())
                                     ? matches.get(0)
-                                    : "Caller spoke briefly regarding project update.";
+                                    : "Caller spoke: Please call me back when free.";
                             finishCallSession(number, name, greetingText, callerText);
                         }
 
@@ -304,14 +306,14 @@ public class AegisCallHandler {
 
                     callSpeechRecognizer.startListening(intent);
 
-                    // Safety timeout after 10s if caller doesn't finish
+                    // Safety timeout after 8s: cut call automatically
                     mainHandler.postDelayed(() -> {
                         if (callSpeechRecognizer != null) {
                             try {
                                 callSpeechRecognizer.stopListening();
                             } catch (Exception ignored) {}
                         }
-                    }, 10000L);
+                    }, 8000L);
                 } else {
                     finishCallSession(number, name, greetingText, "Hello Nani, please call me back when you see this.");
                 }
@@ -323,27 +325,31 @@ public class AegisCallHandler {
     }
 
     private void finishCallSession(String number, String name, String greetingText, String callerText) {
-        String aiReply = "Directive logged. Boss Nani has received your message and will reach out shortly.";
-
-        // Speak final confirmation
-        if (callTts != null && isTtsReady) {
-            Bundle params = new Bundle();
-            params.putInt(TextToSpeech.Engine.KEY_PARAM_STREAM, AudioManager.STREAM_VOICE_CALL);
-            callTts.speak(aiReply, TextToSpeech.QUEUE_FLUSH, params, "AEGIS_CALL_REPLY");
-        }
-
-        // Disconnect call after 2.5 seconds
-        mainHandler.postDelayed(() -> {
-            try {
-                if (activeTelecomCall != null) {
-                    activeTelecomCall.disconnect();
-                    activeTelecomCall = null;
+        // Cut the call immediately!
+        try {
+            if (activeTelecomCall != null) {
+                activeTelecomCall.disconnect();
+                activeTelecomCall = null;
+            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                TelecomManager tm = (TelecomManager) context.getSystemService(Context.TELECOM_SERVICE);
+                if (tm != null) {
+                    try {
+                        tm.endCall();
+                    } catch (SecurityException ignored) {}
                 }
-            } catch (Exception ignored) {}
-        }, 2500L);
+            }
+        } catch (Exception ignored) {}
+
+        // Restore microphone mute
+        try {
+            AudioManager am = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
+            if (am != null) {
+                am.setMicrophoneMute(false);
+            }
+        } catch (Exception ignored) {}
 
         // Package transcript into CallSession
-        saveAndBroadcastCallTranscript(number, name, greetingText, callerText, aiReply);
+        saveAndBroadcastCallTranscript(number, name, greetingText, callerText, null);
     }
 
     private void saveAndBroadcastCallTranscript(String number, String name, String greetingText, String callerText, String aiReply) {
@@ -366,7 +372,7 @@ public class AegisCallHandler {
             sessionObj.put("unread", true);
             sessionObj.put("status", "intercepted");
             sessionObj.put("urgency", "urgent");
-            sessionObj.put("summary", callerText);
+            sessionObj.put("summary", "Voice recording: " + callerText);
 
             JSONArray messages = new JSONArray();
 
@@ -385,13 +391,15 @@ public class AegisCallHandler {
             msg2.put("timestamp", timeOnly);
             messages.put(msg2);
 
-            JSONObject msg3 = new JSONObject();
-            msg3.put("id", "msg-3-" + now);
-            msg3.put("sender", "aegis");
-            msg3.put("text", aiReply);
-            msg3.put("timestamp", timeOnly);
-            msg3.put("status", "read");
-            messages.put(msg3);
+            if (aiReply != null && !aiReply.trim().isEmpty()) {
+                JSONObject msg3 = new JSONObject();
+                msg3.put("id", "msg-3-" + now);
+                msg3.put("sender", "aegis");
+                msg3.put("text", aiReply);
+                msg3.put("timestamp", timeOnly);
+                msg3.put("status", "read");
+                messages.put(msg3);
+            }
 
             sessionObj.put("messages", messages);
 
@@ -513,15 +521,14 @@ public class AegisCallHandler {
     }
 
     public void simulateCallInterceptionWithDetails(String number, String name) {
-        String greeting = "Greetings. I am AEGIS, AI assistant for Boss Nani. Boss is currently unavailable. Please state your name and message after the tone.";
+        String greeting = "Boss is busy right now. If you're okay, please leave a voice recording.";
         String[] samples = {
                 "Hello Nani, please submit the project documentation by 4 PM today.",
                 "Hi Nani, are you free this evening for the hackathon discussion?",
                 "Sir, I am waiting outside your building with the order. Please confirm room number."
         };
         String callerSpeech = samples[(int) (Math.random() * samples.length)];
-        String aegisReply = "Directive logged. Boss Nani has received your message and will reach out shortly.";
-        saveAndBroadcastCallTranscript(number, name, greeting, callerSpeech, aegisReply);
+        saveAndBroadcastCallTranscript(number, name, greeting, callerSpeech, null);
     }
 
     private String resolveContactName(String phoneNumber) {

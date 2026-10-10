@@ -143,26 +143,8 @@ export function MiniWhatsAppCallLogs({ onClose, isMobile = false }: MiniWhatsApp
         });
       } catch (e) {}
 
-      // Simulate AEGIS AI replying after 2.5 seconds
-      setTimeout(async () => {
-        const replies = [
-          "I have noted your message regarding the project documentation. Boss Nani is notified on his dashboard.",
-          "Directive logged. Boss Nani has received your message and will reach out shortly.",
-          "Instructions logged. Boss Nani is coming downstairs right now.",
-        ];
-        const reply = replies[Math.floor(Math.random() * replies.length)];
-        const updated2 = addCallMessage(newSession.id, "aegis", reply);
-        setSessions([...updated2]);
-        setIsSimulating(false);
-
-        try {
-          await fetch("/api/call-logs", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ action: "append_message", sessionId: newSession.id, sender: "aegis", text: reply }),
-          });
-        } catch (e) {}
-      }, 2500);
+      // Call cuts immediately after caller leaves voice recording
+      setIsSimulating(false);
     }, 2000);
   };
 
@@ -570,7 +552,7 @@ export function MiniWhatsAppCallLogs({ onClose, isMobile = false }: MiniWhatsApp
                   maxWidth: "90%",
                 }}
               >
-                🔒 Call automatically answered by AEGIS AI at the final ring. Spoken audio transcribed in real time.
+                🔒 Call intercepted in background by AEGIS AI. Caller left a voice recording and call was disconnected.
               </div>
 
               {/* Message Bubbles */}
