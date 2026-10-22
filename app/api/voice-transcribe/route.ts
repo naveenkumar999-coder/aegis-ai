@@ -19,16 +19,16 @@ export async function POST(req: Request) {
     if (activeApiKey) {
       try {
         const langHint = language === "en-IN" ? "Indian English" : "English";
-        const prompt = `You are a high-precision Speech-to-Text neural model for an advanced AI desktop assistant named MONDAY.
-Your Boss is Nani.
+        const prompt = `You are a high-precision Speech-to-Text neural model for an advanced AI desktop assistant named AEGIS.
+Your Boss is Naveen (Boss Naveen).
 The speaker's language/accent is ${langHint}.
 Listen carefully to the audio and transcribe the exact words spoken by the user.
 Rules:
 1. Return ONLY the transcribed text. Do NOT add any conversational explanation, markdown formatting, quotes, or notes.
-2. Accurately transcribe contact names (e.g. Queen, Nani, Boss), phone numbers (e.g. 8074384365), and app names (e.g. WhatsApp, Brave, Chrome, Notepad).
+2. Accurately transcribe contact names (e.g. Queen, Naveen, Boss), phone numbers (e.g. 8074384365), and app names (e.g. WhatsApp, Brave, Chrome, Notepad).
 3. If the audio is silent or contains no audible speech, return an empty string.`;
 
-        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${activeApiKey}`;
+        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${activeApiKey}`;
 
         const response = await fetch(geminiUrl, {
           method: "POST",

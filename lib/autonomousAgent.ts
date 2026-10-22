@@ -147,13 +147,13 @@ Output ONLY a JSON object with this format (no markdown fences, or wrapped in \`
 Safety: NEVER format drives, delete system directories, or execute destructive commands.`;
 
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${apiKey}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             contents: [{ role: "user", parts: [{ text: systemPrompt }] }],
-            generationConfig: { maxOutputTokens: 600, temperature: 0.2 },
+            generationConfig: { maxOutputTokens: 1200, temperature: 0.2 },
           }),
         }
       );
@@ -162,6 +162,12 @@ Safety: NEVER format drives, delete system directories, or execute destructive c
       const data = await response.json();
       let rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
       rawText = rawText.replace(/```json/gi, "").replace(/```/g, "").trim();
+
+      const startIdx = rawText.indexOf("{");
+      const endIdx = rawText.lastIndexOf("}");
+      if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
+        rawText = rawText.substring(startIdx, endIdx + 1);
+      }
 
       let spec: {
         language: SupportedLanguage;
@@ -186,13 +192,13 @@ Safety: NEVER format drives, delete system directories, or execute destructive c
         console.warn(`[Autonomous Sandbox] Initial execution failed: ${execRes.stderr}. Initiating self-healing...`);
         const healPrompt = `The previous script failed on Windows with error:\n${execRes.stderr}\nOriginal Goal: "${query}"\nBroken Code:\n${spec.code}\n\nFix the code and output ONLY the corrected JSON object.`;
         const healRes = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${apiKey}`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               contents: [{ role: "user", parts: [{ text: healPrompt }] }],
-              generationConfig: { maxOutputTokens: 600, temperature: 0.1 },
+              generationConfig: { maxOutputTokens: 1200, temperature: 0.1 },
             }),
           }
         );
@@ -201,6 +207,11 @@ Safety: NEVER format drives, delete system directories, or execute destructive c
           const healData = await healRes.json();
           let healText = healData.candidates?.[0]?.content?.parts?.[0]?.text || "";
           healText = healText.replace(/```json/gi, "").replace(/```/g, "").trim();
+          const hStart = healText.indexOf("{");
+          const hEnd = healText.lastIndexOf("}");
+          if (hStart !== -1 && hEnd !== -1 && hEnd > hStart) {
+            healText = healText.substring(hStart, hEnd + 1);
+          }
           try {
             const fixedSpec = JSON.parse(healText);
             if (fixedSpec.code) {
