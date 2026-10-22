@@ -106,5 +106,69 @@ export async function POST(req: Request) {
 }
 
 export async function GET(req: Request) {
-  return POST(req);
+  try {
+    const url = new URL(req.url);
+    const searchParams = url.searchParams;
+
+    const fromNumber =
+      searchParams.get("CallFrom") ||
+      searchParams.get("From") ||
+      searchParams.get("Caller") ||
+      "Unknown Caller";
+
+    const callSid =
+      searchParams.get("CallSid") ||
+      searchParams.get("call_sid") ||
+      `call-${Date.now()}`;
+
+    const toNumber =
+      searchParams.get("CallTo") ||
+      searchParams.get("To") ||
+      "";
+
+    console.log(`[EXOTEL PASSTHRU WEBHOOK] Call from: ${fromNumber} | To: ${toNumber} | Sid: ${callSid}`);
+
+    if (fromNumber && fromNumber !== "Unknown Caller") {
+      const now = Date.now();
+      const sessionId = `call-${callSid}`;
+      const timeStr = "Today, " + new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      const timeOnly = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      const colors = ["#25D366", "#00A884", "#128C7E", "#34B7F1", "#075E54"];
+      const avatarColor = colors[Math.abs(fromNumber.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0)) % colors.length];
+
+      await addServerCallSession({
+        id: sessionId,
+        callerName: fromNumber,
+        callerNumber: fromNumber,
+        avatarColor,
+        timestamp: timeStr,
+        duration: "Active",
+        unread: true,
+        urgency: "normal",
+        status: "ongoing",
+        summary: "AEGIS received call via Exotel Passthru...",
+        messages: [
+          {
+            id: `msg-welcome-${now}`,
+            sender: "aegis",
+            text: "Hello, I am AEGIS, Naveen's personal AI assistant. He is currently unavailable. Please leave your name and message after the beep.",
+            timestamp: timeOnly,
+            status: "delivered",
+          },
+        ],
+      });
+    }
+
+    return new NextResponse("OK", {
+      status: 200,
+      headers: {
+        "Content-Type": "text/plain; charset=utf-8",
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+      },
+    });
+  } catch (err: any) {
+    console.error("Error in Exotel Passthru GET handler:", err);
+    return new NextResponse("OK", { status: 200 });
+  }
 }
+
