@@ -135,16 +135,9 @@ export function MiniWhatsAppCallLogs({ onClose, isMobile = false }: MiniWhatsApp
       return;
     }
 
-    let uriToPlay = audioDataUri || generateSampleAudioMemoBase64();
+    setPlayingAudioId(msgId);
 
-    // Auto-route direct Exotel recording URLs through our authenticated streaming proxy
-    if (
-      uriToPlay &&
-      (uriToPlay.includes("recordings.exotel.com") ||
-        (uriToPlay.includes("exotel.com") && !uriToPlay.includes("/api/telephony/recording-audio")))
-    ) {
-      uriToPlay = `/api/telephony/recording-audio?url=${encodeURIComponent(uriToPlay)}`;
-    }
+    const uriToPlay = audioDataUri || generateSampleAudioMemoBase64();
 
     if (
       uriToPlay &&
@@ -1024,39 +1017,59 @@ export function MiniWhatsAppCallLogs({ onClose, isMobile = false }: MiniWhatsApp
                       {msg.text}
                     </div>
 
-                    {/* Voice Note Audio Preview */}
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "6px",
-                        marginTop: "6px",
-                        backgroundColor: isAegis ? "rgba(0, 0, 0, 0.2)" : "rgba(255, 255, 255, 0.08)",
-                        padding: "4px 8px",
-                        borderRadius: "6px",
-                        cursor: "pointer",
-                        userSelect: "none",
-                      }}
-                      onClick={() =>
-                        handlePlayMessageAudio(
-                          msg.id,
-                          msg.text,
-                          isAegis,
-                          msg.audioDataUri || activeSession.audioDataUri
-                        )
-                      }
-                      title="Click to listen to voice recording"
-                    >
-                      <span style={{ fontSize: "11px" }}>{playingAudioId === msg.id ? "⏸️" : "▶️"}</span>
-                      <span style={{ fontSize: "10px", color: isAegis ? "#25D366" : "#53BDEB", fontWeight: "500", flex: 1 }}>
-                        {playingAudioId === msg.id
-                          ? "Playing Audio..."
-                          : msg.audioDataUri || activeSession.audioDataUri
-                          ? "🎙️ Caller Voice Memo"
-                          : "Voice Note"}
-                      </span>
-                      <span style={{ fontSize: "10px", opacity: 0.7 }}>🔊</span>
-                    </div>
+                    {/* Voice Note Audio Preview — show only when a recording exists */}
+                    {(msg.audioDataUri || activeSession.audioDataUri) && (
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "8px",
+                          marginTop: "8px",
+                          backgroundColor: "rgba(255,255,255,0.08)",
+                          padding: "8px 10px",
+                          borderRadius: "8px",
+                        }}
+                      >
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handlePlayMessageAudio(
+                              msg.id,
+                              msg.text,
+                              isAegis,
+                              msg.audioDataUri || activeSession.audioDataUri
+                            )
+                          }
+                          style={{
+                            backgroundColor: "#00A884",
+                            border: "none",
+                            borderRadius: "50%",
+                            width: "34px",
+                            height: "34px",
+                            color: "#FFFFFF",
+                            cursor: "pointer",
+                            flexShrink: 0,
+                            fontSize: "14px",
+                          }}
+                          aria-label={
+                            playingAudioId === msg.id
+                              ? "Stop recording"
+                              : "Play caller recording"
+                          }
+                        >
+                          {playingAudioId === msg.id ? "⏸" : "▶"}
+                        </button>
+
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: "12px", fontWeight: "600", color: "#E9EDEF" }}>
+                            Caller voice recording
+                          </div>
+                          <div style={{ fontSize: "10px", color: "#8696A0" }}>
+                            Click play to listen
+                          </div>
+                        </div>
+                      </div>
+                    )}
 
                     {/* Time & Read Receipts */}
                     <div
