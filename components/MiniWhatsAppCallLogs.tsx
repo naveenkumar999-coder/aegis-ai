@@ -135,9 +135,16 @@ export function MiniWhatsAppCallLogs({ onClose, isMobile = false }: MiniWhatsApp
       return;
     }
 
-    setPlayingAudioId(msgId);
+    let uriToPlay = audioDataUri || generateSampleAudioMemoBase64();
 
-    const uriToPlay = audioDataUri || generateSampleAudioMemoBase64();
+    // Auto-route direct Exotel recording URLs through our authenticated streaming proxy
+    if (
+      uriToPlay &&
+      (uriToPlay.includes("recordings.exotel.com") ||
+        (uriToPlay.includes("exotel.com") && !uriToPlay.includes("/api/telephony/recording-audio")))
+    ) {
+      uriToPlay = `/api/telephony/recording-audio?url=${encodeURIComponent(uriToPlay)}`;
+    }
 
     if (
       uriToPlay &&

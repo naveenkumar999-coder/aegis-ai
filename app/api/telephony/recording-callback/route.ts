@@ -91,6 +91,12 @@ export async function POST(req: Request) {
 
     const displayDuration = duration || (hasRecording ? "Voice Rec" : "Completed");
 
+    const proxyAudioUrl = hasRecording
+      ? recordingUrl.startsWith("/api/telephony/recording-audio")
+        ? recordingUrl
+        : `/api/telephony/recording-audio?url=${encodeURIComponent(recordingUrl)}`
+      : undefined;
+
     const newSession: CallSession = {
       id: sessionId,
       callerName: fromNumber,
@@ -102,7 +108,7 @@ export async function POST(req: Request) {
       status: sessionStatus,
       urgency: hasRecording ? "urgent" : "normal",
       summary: sessionSummary,
-      audioDataUri: hasRecording ? recordingUrl : undefined,
+      audioDataUri: proxyAudioUrl,
       messages: [
         {
           id: `msg-1-${uniqueKey}`,
@@ -116,7 +122,7 @@ export async function POST(req: Request) {
           sender: "caller",
           text: displayText,
           timestamp: timeOnly,
-          audioDataUri: hasRecording ? recordingUrl : undefined,
+          audioDataUri: proxyAudioUrl,
         },
       ],
     };
@@ -124,18 +130,18 @@ export async function POST(req: Request) {
     // Idempotent update or insert
     const currentSessions = getServerCallSessions();
     const existingIndex = currentSessions.findIndex(
-      (s) => s.id === sessionId || (recordingUrl && s.audioDataUri === recordingUrl)
+      (s) => s.id === sessionId || (proxyAudioUrl && s.audioDataUri === proxyAudioUrl) || (recordingUrl && s.audioDataUri?.includes(recordingUrl))
     );
 
     if (existingIndex >= 0) {
       // Update existing record with final transcription or duration without duplicating
       const existing = currentSessions[existingIndex];
       existing.summary = sessionSummary;
-      if (recordingUrl && !existing.audioDataUri) existing.audioDataUri = recordingUrl;
+      if (proxyAudioUrl) existing.audioDataUri = proxyAudioUrl;
       if (duration && duration !== "Voice Rec") existing.duration = duration;
       if (existing.messages && existing.messages.length >= 2) {
-        existing.messages[1].text = transcriptionText;
-        if (recordingUrl) existing.messages[1].audioDataUri = recordingUrl;
+        existing.messages[1].text = displayText;
+        if (proxyAudioUrl) existing.messages[1].audioDataUri = proxyAudioUrl;
       }
       saveServerCallSessions(currentSessions);
     } else {
