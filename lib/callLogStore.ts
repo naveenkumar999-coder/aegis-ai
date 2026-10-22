@@ -4,6 +4,7 @@ export interface CallMessage {
   text: string;
   timestamp: string;
   status?: "sent" | "delivered" | "read";
+  audioDataUri?: string;
 }
 
 export interface CallSession {
@@ -17,6 +18,7 @@ export interface CallSession {
   status: "intercepted" | "completed" | "ongoing";
   urgency: "urgent" | "normal" | "inquiry";
   summary?: string;
+  audioDataUri?: string;
   messages: CallMessage[];
 }
 
@@ -27,7 +29,7 @@ const DEFAULT_CALL_SESSIONS: CallSession[] = [
     callerNumber: "+91 98765 43210",
     avatarColor: "#25D366",
     timestamp: "Today, 10:42 AM",
-    duration: "0:25",
+    duration: "Voice Rec",
     unread: true,
     status: "intercepted",
     urgency: "urgent",
@@ -36,14 +38,14 @@ const DEFAULT_CALL_SESSIONS: CallSession[] = [
       {
         id: "msg-1",
         sender: "aegis",
-        text: "Boss is busy right now. If you're okay, please leave a voice recording.",
+        text: "Hello, I am AEGIS, Naveen's personal AI assistant. He is currently unavailable. Please leave your name and message after the beep.",
         timestamp: "10:42 AM",
         status: "read",
       },
       {
         id: "msg-2",
         sender: "caller",
-        text: "Hey Nani, this is Rajesh. Are you coming to the lab seminar at 2 PM? We need to review the presentation slides before the professor arrives. Call me back when free.",
+        text: "Hey Naveen, this is Rajesh. Are you coming to the lab seminar at 2 PM? We need to review the presentation slides before the professor arrives. Call me back when free.",
         timestamp: "10:42 AM",
       },
     ],
@@ -54,7 +56,7 @@ const DEFAULT_CALL_SESSIONS: CallSession[] = [
     callerNumber: "+91 91234 56789",
     avatarColor: "#00A884",
     timestamp: "Yesterday, 3:15 PM",
-    duration: "0:20",
+    duration: "Voice Rec",
     unread: false,
     status: "completed",
     urgency: "normal",
@@ -63,7 +65,7 @@ const DEFAULT_CALL_SESSIONS: CallSession[] = [
       {
         id: "msg-6",
         sender: "aegis",
-        text: "Boss is busy right now. If you're okay, please leave a voice recording.",
+        text: "Hello, I am AEGIS, Naveen's personal AI assistant. He is currently unavailable. Please leave your name and message after the beep.",
         timestamp: "3:15 PM",
         status: "read",
       },
@@ -81,7 +83,7 @@ const DEFAULT_CALL_SESSIONS: CallSession[] = [
     callerNumber: "+91 80012 34567",
     avatarColor: "#128C7E",
     timestamp: "28 Sep, 11:20 AM",
-    duration: "0:18",
+    duration: "Voice Rec",
     unread: false,
     status: "completed",
     urgency: "normal",
@@ -90,7 +92,7 @@ const DEFAULT_CALL_SESSIONS: CallSession[] = [
       {
         id: "msg-10",
         sender: "aegis",
-        text: "Boss is busy right now. If you're okay, please leave a voice recording.",
+        text: "Hello, I am AEGIS, Naveen's personal AI assistant. He is currently unavailable. Please leave your name and message after the beep.",
         timestamp: "11:20 AM",
         status: "read",
       },
@@ -135,7 +137,12 @@ export function markSessionAsRead(sessionId: string): CallSession[] {
   return list;
 }
 
-export function addCallMessage(sessionId: string, sender: "caller" | "aegis", text: string): CallSession[] {
+export function addCallMessage(
+  sessionId: string,
+  sender: "caller" | "aegis",
+  text: string,
+  audioDataUri?: string
+): CallSession[] {
   const now = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   const list = getCallSessions().map((s) => {
     if (s.id === sessionId) {
@@ -145,9 +152,12 @@ export function addCallMessage(sessionId: string, sender: "caller" | "aegis", te
         text,
         timestamp: now,
         status: sender === "aegis" ? "read" : undefined,
+        audioDataUri,
       };
       return {
         ...s,
+        audioDataUri: audioDataUri || s.audioDataUri,
+        summary: sender === "caller" ? "Voice recording: " + text : s.summary,
         messages: [...s.messages, newMsg],
       };
     }
@@ -157,7 +167,7 @@ export function addCallMessage(sessionId: string, sender: "caller" | "aegis", te
   return list;
 }
 
-export function createNewCallSession(callerName: string, callerNumber: string): CallSession {
+export function createNewCallSession(callerName: string, callerNumber: string, audioDataUri?: string): CallSession {
   const id = "call-" + Date.now();
   const timeStr = "Today, " + new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   const colors = ["#25D366", "#00A884", "#128C7E", "#34B7F1", "#075E54"];
@@ -173,11 +183,12 @@ export function createNewCallSession(callerName: string, callerNumber: string): 
     unread: true,
     status: "ongoing",
     urgency: "normal",
+    audioDataUri,
     messages: [
       {
         id: "msg-welcome-" + Date.now(),
         sender: "aegis",
-        text: "Boss is busy right now. If you're okay, please leave a voice recording.",
+        text: "Hello, I am AEGIS, Naveen's personal AI assistant. He is currently unavailable. Please leave your name and message after the beep.",
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         status: "read",
       },
@@ -188,3 +199,4 @@ export function createNewCallSession(callerName: string, callerNumber: string): 
   saveCallSessions(list);
   return newSession;
 }
+
