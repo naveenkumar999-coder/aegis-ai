@@ -134,7 +134,7 @@ export async function POST(req: Request) {
         if (s.id === sessionId) {
           return {
             ...s,
-            audioDataUri: audioDataUri || s.audioDataUri,
+            audioDataUri: existing.audioDataUri || s.audioDataUri,
             summary: sender === "caller" ? "Voice recording: " + text : s.summary,
             messages: [
               ...s.messages,
