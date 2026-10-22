@@ -10,22 +10,39 @@ export async function POST(req: Request) {
   try {
     let fromNumber = "Unknown Caller";
     let recordingUrl = "";
-    let duration = "Voice Rec";
-    let transcriptionText = "Caller left a voice message.";
+    let duration = "";
+    let transcriptionText = "";
     let callSid = "";
     let recordingSid = "";
     let recordingStatus = "completed";
+
+    const url = new URL(req.url);
+    const searchParams = url.searchParams;
+
+    if (searchParams.get("From") || searchParams.get("CallFrom") || searchParams.get("RecordingUrl") || searchParams.get("CallSid")) {
+      fromNumber = (searchParams.get("From") || searchParams.get("CallFrom") || searchParams.get("Caller") || fromNumber).toString();
+      recordingUrl = (searchParams.get("RecordingUrl") || searchParams.get("recording_url") || recordingUrl).toString();
+      callSid = (searchParams.get("CallSid") || searchParams.get("call_sid") || callSid).toString();
+      recordingSid = (searchParams.get("RecordingSid") || searchParams.get("recording_sid") || recordingSid).toString();
+      recordingStatus = (searchParams.get("RecordingStatus") || recordingStatus).toString();
+      const dur = searchParams.get("RecordingDuration") || searchParams.get("DialCallDuration");
+      if (dur) duration = `${dur}s`;
+      const trans = searchParams.get("TranscriptionText");
+      if (trans && trans.trim().length > 0) {
+        transcriptionText = trans.trim();
+      }
+    }
 
     const contentType = req.headers.get("content-type") || "";
 
     if (contentType.includes("application/x-www-form-urlencoded")) {
       const formData = await req.formData();
-      fromNumber = (formData.get("From") || formData.get("Caller") || "Unknown Caller").toString();
-      recordingUrl = (formData.get("RecordingUrl") || "").toString();
-      callSid = (formData.get("CallSid") || formData.get("call_sid") || "").toString();
-      recordingSid = (formData.get("RecordingSid") || formData.get("recording_sid") || "").toString();
-      recordingStatus = (formData.get("RecordingStatus") || "completed").toString();
-      const dur = formData.get("RecordingDuration");
+      fromNumber = (formData.get("From") || formData.get("CallFrom") || formData.get("Caller") || fromNumber).toString();
+      recordingUrl = (formData.get("RecordingUrl") || formData.get("recording_url") || recordingUrl).toString();
+      callSid = (formData.get("CallSid") || formData.get("call_sid") || callSid).toString();
+      recordingSid = (formData.get("RecordingSid") || formData.get("recording_sid") || recordingSid).toString();
+      recordingStatus = (formData.get("RecordingStatus") || recordingStatus).toString();
+      const dur = formData.get("RecordingDuration") || formData.get("DialCallDuration");
       if (dur) duration = `${dur}s`;
       const trans = formData.get("TranscriptionText");
       if (trans && trans.toString().trim().length > 0) {
@@ -33,17 +50,17 @@ export async function POST(req: Request) {
       }
     } else if (contentType.includes("application/json")) {
       const json = await req.json();
-      fromNumber = json.From || json.Caller || json.fromNumber || "Unknown Caller";
-      recordingUrl = json.RecordingUrl || json.recordingUrl || "";
-      callSid = json.CallSid || json.call_sid || "";
-      recordingSid = json.RecordingSid || json.recording_sid || "";
-      recordingStatus = json.RecordingStatus || "completed";
+      fromNumber = json.From || json.CallFrom || json.Caller || json.fromNumber || fromNumber;
+      recordingUrl = json.RecordingUrl || json.recording_url || json.recordingUrl || recordingUrl;
+      callSid = json.CallSid || json.call_sid || callSid;
+      recordingSid = json.RecordingSid || json.recording_sid || recordingSid;
+      recordingStatus = json.RecordingStatus || recordingStatus;
       if (json.RecordingDuration) duration = `${json.RecordingDuration}s`;
       if (json.TranscriptionText) transcriptionText = json.TranscriptionText;
     }
 
     // Ensure audio file extension if twilio URL
-    if (recordingUrl && !recordingUrl.endsWith(".mp3") && !recordingUrl.endsWith(".wav") && !recordingUrl.startsWith("data:")) {
+    if (recordingUrl && recordingUrl.includes("api.twilio.com") && !recordingUrl.endsWith(".mp3")) {
       recordingUrl = `${recordingUrl}.mp3`;
     }
 
@@ -57,11 +74,22 @@ export async function POST(req: Request) {
     const colors = ["#25D366", "#00A884", "#128C7E", "#34B7F1", "#075E54"];
     const avatarColor = colors[Math.abs(fromNumber.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0)) % colors.length];
 
-    const isFailed = recordingStatus === "failed" || (!recordingUrl && !transcriptionText);
-    const sessionStatus: "intercepted" | "completed" | "ongoing" = isFailed ? "completed" : "intercepted";
-    const sessionSummary = isFailed
-      ? "Call disconnected without recording"
-      : `Voice recording: ${transcriptionText}`;
+    const hasRecording = Boolean(recordingUrl && recordingUrl.trim().length > 0);
+    const hasTranscription = Boolean(transcriptionText && transcriptionText.trim().length > 0);
+    const isFailed = recordingStatus === "failed" || (!hasRecording && !hasTranscription);
+
+    const sessionStatus: "intercepted" | "completed" | "ongoing" = hasRecording ? "intercepted" : "completed";
+    const displayText = hasTranscription
+      ? transcriptionText
+      : hasRecording
+      ? "Caller left a voice recording."
+      : "Call disconnected without voice recording.";
+
+    const sessionSummary = hasRecording
+      ? `Voice recording: ${displayText}`
+      : "Call disconnected without recording";
+
+    const displayDuration = duration || (hasRecording ? "Voice Rec" : "Completed");
 
     const newSession: CallSession = {
       id: sessionId,
@@ -69,12 +97,12 @@ export async function POST(req: Request) {
       callerNumber: fromNumber,
       avatarColor,
       timestamp: timeStr,
-      duration,
+      duration: displayDuration,
       unread: true,
       status: sessionStatus,
-      urgency: "urgent",
+      urgency: hasRecording ? "urgent" : "normal",
       summary: sessionSummary,
-      audioDataUri: recordingUrl || undefined,
+      audioDataUri: hasRecording ? recordingUrl : undefined,
       messages: [
         {
           id: `msg-1-${uniqueKey}`,
@@ -86,9 +114,9 @@ export async function POST(req: Request) {
         {
           id: `msg-2-${uniqueKey}`,
           sender: "caller",
-          text: transcriptionText,
+          text: displayText,
           timestamp: timeOnly,
-          audioDataUri: recordingUrl || undefined,
+          audioDataUri: hasRecording ? recordingUrl : undefined,
         },
       ],
     };
