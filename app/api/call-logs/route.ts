@@ -5,6 +5,7 @@ import {
   saveServerCallSessions,
   addServerCallSession,
 } from "@/lib/serverCallSessions";
+import { transcribeRecordingUrl } from "@/lib/voiceTranscriber";
 
 const EXOTEL_SID = process.env.EXOTEL_ACCOUNT_SID || "";
 const EXOTEL_KEY = process.env.EXOTEL_API_KEY || "";
@@ -25,59 +26,70 @@ async function fetchExotelCalls(): Promise<CallSession[]> {
 
     const colors = ["#25D366", "#00A884", "#128C7E", "#34B7F1", "#075E54"];
 
-    return calls.map((c: any) => {
-      const sid = c.Sid || "";
-      const from = c.From || "Unknown Caller";
-      const hasRec = Boolean(c.RecordingUrl && c.RecordingUrl.trim().length > 0);
-      const audioDataUri = hasRec
-        ? `/api/telephony/recording-audio?url=${encodeURIComponent(c.RecordingUrl)}`
-        : undefined;
+    return Promise.all(
+      calls.map(async (c: any) => {
+        const sid = c.Sid || "";
+        const from = c.From || "Unknown Caller";
+        const hasRec = Boolean(c.RecordingUrl && c.RecordingUrl.trim().length > 0);
+        const audioDataUri = hasRec
+          ? `/api/telephony/recording-audio?url=${encodeURIComponent(c.RecordingUrl)}`
+          : undefined;
 
-      const dur = c.Duration ? `${c.Duration}s` : hasRec ? "Voice Rec" : "Completed";
-      const avatarColor = colors[Math.abs(from.split("").reduce((acc: number, ch: string) => acc + ch.charCodeAt(0), 0)) % colors.length];
+        let transcript = "";
+        if (hasRec) {
+          transcript = await transcribeRecordingUrl(c.RecordingUrl);
+        }
 
-      const callDate = c.StartTime ? new Date(c.StartTime) : new Date();
-      const timeStr = "Today, " + callDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-      const timeOnly = callDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+        const dur = c.Duration ? `${c.Duration}s` : hasRec ? "Voice Rec" : "Completed";
+        const avatarColor = colors[Math.abs(from.split("").reduce((acc: number, ch: string) => acc + ch.charCodeAt(0), 0)) % colors.length];
 
-      const summary = hasRec
-        ? `Voice recording (${dur})`
-        : `Call completed (${dur})`;
+        const callDate = c.StartTime ? new Date(c.StartTime) : new Date();
+        const timeStr = "Today, " + callDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+        const timeOnly = callDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
-      const callerMsgText = hasRec
-        ? "Caller left a voice recording."
-        : "Call connected and completed.";
+        const summary = transcript
+          ? `Voice recording: ${transcript}`
+          : hasRec
+          ? `Voice recording (${dur})`
+          : `Call completed (${dur})`;
 
-      return {
-        id: `call-${sid}`,
-        callerName: from,
-        callerNumber: from,
-        avatarColor,
-        timestamp: timeStr,
-        duration: dur,
-        unread: false,
-        status: hasRec ? "intercepted" : "completed",
-        urgency: hasRec ? "urgent" : "normal",
-        summary,
-        audioDataUri,
-        messages: [
-          {
-            id: `msg-1-${sid}`,
-            sender: "aegis",
-            text: "Hello, I am AEGIS, Naveen's personal AI assistant. He is currently unavailable. Please leave your name and message after the beep.",
-            timestamp: timeOnly,
-            status: "read",
-          },
-          {
-            id: `msg-2-${sid}`,
-            sender: "caller",
-            text: callerMsgText,
-            timestamp: timeOnly,
-            audioDataUri,
-          },
-        ],
-      } as CallSession;
-    });
+        const callerMsgText = transcript
+          ? transcript
+          : hasRec
+          ? "Caller left a voice recording."
+          : "Call connected and completed.";
+
+        return {
+          id: `call-${sid}`,
+          callerName: from,
+          callerNumber: from,
+          avatarColor,
+          timestamp: timeStr,
+          duration: dur,
+          unread: false,
+          status: hasRec ? "intercepted" : "completed",
+          urgency: hasRec ? "urgent" : "normal",
+          summary,
+          audioDataUri,
+          messages: [
+            {
+              id: `msg-1-${sid}`,
+              sender: "aegis",
+              text: "Hello, I am AEGIS, Naveen's personal AI assistant. He is currently unavailable. Please leave your name and message after the beep.",
+              timestamp: timeOnly,
+              status: "read",
+            },
+            {
+              id: `msg-2-${sid}`,
+              sender: "caller",
+              text: callerMsgText,
+              timestamp: timeOnly,
+              audioDataUri,
+            },
+          ],
+        } as CallSession;
+      })
+    );
   } catch (e) {
     console.warn("Failed to fetch Exotel calls:", e);
     return [];
@@ -134,7 +146,7 @@ export async function POST(req: Request) {
         if (s.id === sessionId) {
           return {
             ...s,
-            audioDataUri: existing.audioDataUri || s.audioDataUri,
+            audioDataUri: audioDataUri || s.audioDataUri,
             summary: sender === "caller" ? "Voice recording: " + text : s.summary,
             messages: [
               ...s.messages,
