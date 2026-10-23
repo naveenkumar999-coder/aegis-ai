@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 
+export const dynamic = "force-dynamic";
+
 const EXOTEL_KEY = process.env.EXOTEL_API_KEY || "";
 const EXOTEL_TOKEN = process.env.EXOTEL_API_TOKEN || "";
 
