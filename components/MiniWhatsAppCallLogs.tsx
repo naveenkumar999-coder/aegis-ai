@@ -101,23 +101,8 @@ export function MiniWhatsAppCallLogs({ onClose, isMobile = false }: MiniWhatsApp
 
   const activeAudioRef = useRef<HTMLAudioElement | null>(null);
 
-  const speakFallback = (msgId: string, text: string, isAegis: boolean) => {
-    if (typeof window === "undefined" || !window.speechSynthesis) {
-      setPlayingAudioId(null);
-      return;
-    }
-    const utt = new SpeechSynthesisUtterance(text);
-    utt.rate = isAegis ? 1.0 : 0.95;
-    utt.pitch = isAegis ? 1.15 : 0.9;
-    utt.onend = () => setPlayingAudioId(null);
-    utt.onerror = () => setPlayingAudioId(null);
-    window.speechSynthesis.speak(utt);
-  };
-
   const handlePlayMessageAudio = (
     msgId: string,
-    text: string,
-    isAegis: boolean,
     audioDataUri?: string
   ) => {
     if (typeof window === "undefined") return;
@@ -135,9 +120,13 @@ export function MiniWhatsAppCallLogs({ onClose, isMobile = false }: MiniWhatsApp
       return;
     }
 
-    setPlayingAudioId(msgId);
+    if (!audioDataUri) {
+      console.warn("No audio recording available for message:", msgId);
+      setPlayingAudioId(null);
+      return;
+    }
 
-    let uriToPlay = audioDataUri || generateSampleAudioMemoBase64();
+    let uriToPlay = audioDataUri;
 
     // Auto-route direct Exotel recording URLs through our authenticated streaming proxy
     if (
@@ -148,34 +137,30 @@ export function MiniWhatsAppCallLogs({ onClose, isMobile = false }: MiniWhatsApp
       uriToPlay = `/api/telephony/recording-audio?url=${encodeURIComponent(uriToPlay)}`;
     }
 
-    if (
-      uriToPlay &&
-      (uriToPlay.startsWith("data:audio/") ||
-        uriToPlay.startsWith("http://") ||
-        uriToPlay.startsWith("https://") ||
-        uriToPlay.startsWith("/"))
-    ) {
-      try {
-        const audio = new Audio(uriToPlay);
-        activeAudioRef.current = audio;
-        audio.onended = () => {
-          setPlayingAudioId(null);
-          activeAudioRef.current = null;
-        };
-        audio.onerror = () => {
-          speakFallback(msgId, text, isAegis);
-        };
-        audio.play().catch(() => {
-          speakFallback(msgId, text, isAegis);
-        });
-        return;
-      } catch {
-        speakFallback(msgId, text, isAegis);
-        return;
-      }
-    }
+    setPlayingAudioId(msgId);
 
-    speakFallback(msgId, text, isAegis);
+    try {
+      const audio = new Audio(uriToPlay);
+      activeAudioRef.current = audio;
+      audio.onended = () => {
+        setPlayingAudioId(null);
+        activeAudioRef.current = null;
+      };
+      audio.onerror = (e) => {
+        console.error("Audio playback error for", uriToPlay, e);
+        setPlayingAudioId(null);
+        activeAudioRef.current = null;
+      };
+      audio.play().catch((err) => {
+        console.error("Audio play() promise rejected:", err);
+        setPlayingAudioId(null);
+        activeAudioRef.current = null;
+      });
+    } catch (e) {
+      console.error("Failed to initialize Audio:", e);
+      setPlayingAudioId(null);
+      activeAudioRef.current = null;
+    }
   };
 
   const handleSimulateNewCall = async () => {
@@ -994,13 +979,20 @@ export function MiniWhatsAppCallLogs({ onClose, isMobile = false }: MiniWhatsApp
               {/* Message Bubbles */}
               {activeSession.messages.map((msg) => {
                 const isAegis = msg.sender === "aegis";
+                const audioUri = msg.audioDataUri || (!isAegis ? activeSession.audioDataUri : undefined);
+                const hasVoiceRecording = !isAegis && Boolean(audioUri);
+
+                // Clean transcript text for display (remove redundant prefixes if present)
+                const transcriptText = msg.text
+                  ? msg.text.replace(/^Voice recording:\s*/i, "").replace(/^["“]+|["”]+$/g, "").trim()
+                  : "";
 
                 return (
                   <div
                     key={msg.id}
                     style={{
                       alignSelf: isAegis ? "flex-end" : "flex-start",
-                      maxWidth: "75%",
+                      maxWidth: hasVoiceRecording ? "82%" : "75%",
                       backgroundColor: isAegis ? "#005C4B" : "#202C33",
                       color: "#E9EDEF",
                       borderRadius: isAegis ? "8px 0px 8px 8px" : "0px 8px 8px 8px",
@@ -1015,68 +1007,109 @@ export function MiniWhatsAppCallLogs({ onClose, isMobile = false }: MiniWhatsApp
                         fontSize: "10px",
                         fontWeight: "bold",
                         color: isAegis ? "#25D366" : "#53BDEB",
-                        marginBottom: "2px",
+                        marginBottom: "4px",
                       }}
                     >
                       {isAegis ? "⚡ AEGIS AI" : activeSession.callerName}
                     </div>
 
-                    {/* Text */}
-                    <div style={{ fontSize: "13px", lineHeight: "1.4", wordBreak: "break-word" }}>
-                      {msg.text}
-                    </div>
-
-                    {/* Voice Note Audio Preview — show only when a recording exists */}
-                    {(msg.audioDataUri || activeSession.audioDataUri) && (
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "8px",
-                          marginTop: "8px",
-                          backgroundColor: "rgba(255,255,255,0.08)",
-                          padding: "8px 10px",
-                          borderRadius: "8px",
-                        }}
-                      >
-                        <button
-                          type="button"
-                          onClick={() =>
-                            handlePlayMessageAudio(
-                              msg.id,
-                              msg.text,
-                              isAegis,
-                              msg.audioDataUri || activeSession.audioDataUri
-                            )
-                          }
+                    {hasVoiceRecording ? (
+                      <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                        {/* 1. Caller Recording Audio Player */}
+                        <div
                           style={{
-                            backgroundColor: "#00A884",
-                            border: "none",
-                            borderRadius: "50%",
-                            width: "34px",
-                            height: "34px",
-                            color: "#FFFFFF",
-                            cursor: "pointer",
-                            flexShrink: 0,
-                            fontSize: "14px",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "10px",
+                            backgroundColor: "rgba(0, 0, 0, 0.25)",
+                            border: "1px solid rgba(255, 255, 255, 0.08)",
+                            padding: "8px 10px",
+                            borderRadius: "8px",
                           }}
-                          aria-label={
-                            playingAudioId === msg.id
-                              ? "Stop recording"
-                              : "Play caller recording"
-                          }
                         >
-                          {playingAudioId === msg.id ? "⏸" : "▶"}
-                        </button>
+                          <button
+                            type="button"
+                            onClick={() => handlePlayMessageAudio(msg.id, audioUri)}
+                            style={{
+                              backgroundColor: "#00A884",
+                              border: "none",
+                              borderRadius: "50%",
+                              width: "36px",
+                              height: "36px",
+                              color: "#FFFFFF",
+                              cursor: "pointer",
+                              flexShrink: 0,
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              fontSize: "14px",
+                            }}
+                            aria-label={
+                              playingAudioId === msg.id
+                                ? "Stop recording"
+                                : "Play original caller recording"
+                            }
+                          >
+                            {playingAudioId === msg.id ? "⏸" : "▶"}
+                          </button>
 
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: "12px", fontWeight: "600", color: "#E9EDEF" }}>
-                            Caller voice recording
-                          </div>
-                          <div style={{ fontSize: "10px", color: "#8696A0" }}>
-                            Click play to listen
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: "12px", fontWeight: "600", color: "#E9EDEF" }}>
+                              Caller recording
+                            </div>
+                            <div
+                              style={{
+                                fontSize: "11px",
+                                color: "#00A884",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "4px",
+                              }}
+                            >
+                              <span style={{ fontSize: "8px" }}>●</span> Original voice · Actual Exotel audio
+                            </div>
                           </div>
                         </div>
+
+                        {/* 2. Transcript Section */}
+                        {transcriptText && (
+                          <div
+                            style={{
+                              backgroundColor: "rgba(255, 255, 255, 0.04)",
+                              borderLeft: "3px solid #00A884",
+                              padding: "6px 10px",
+                              borderRadius: "4px",
+                            }}
+                          >
+                            <div
+                              style={{
+                                fontSize: "10px",
+                                fontWeight: "600",
+                                color: "#8696A0",
+                                letterSpacing: "0.5px",
+                                textTransform: "uppercase",
+                                marginBottom: "2px",
+                              }}
+                            >
+                              Transcript
+                            </div>
+                            <div
+                              style={{
+                                fontSize: "13px",
+                                lineHeight: "1.4",
+                                color: "#E9EDEF",
+                                fontStyle: "italic",
+                              }}
+                            >
+                              “{transcriptText}”
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      /* Standard Text (e.g. AEGIS AI greeting or non-recording status) */
+                      <div style={{ fontSize: "13px", lineHeight: "1.4", wordBreak: "break-word" }}>
+                        {msg.text}
                       </div>
                     )}
 

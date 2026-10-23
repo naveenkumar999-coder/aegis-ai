@@ -33,11 +33,42 @@ export async function GET(req: Request) {
 
     const contentType = audioRes.headers.get("content-type") || "audio/mpeg";
     const audioBuffer = await audioRes.arrayBuffer();
+    const totalBytes = audioBuffer.byteLength;
+
+    const rangeHeader = req.headers.get("range");
+    if (rangeHeader && rangeHeader.startsWith("bytes=")) {
+      const parts = rangeHeader.replace(/bytes=/, "").split("-");
+      const start = parseInt(parts[0], 10) || 0;
+      const end = parts[1] ? parseInt(parts[1], 10) : totalBytes - 1;
+
+      if (start >= totalBytes || end >= totalBytes || start > end) {
+        return new Response("Requested range not satisfiable", {
+          status: 416,
+          headers: {
+            "Content-Range": `bytes */${totalBytes}`,
+          },
+        });
+      }
+
+      const chunk = audioBuffer.slice(start, end + 1);
+
+      return new Response(chunk, {
+        status: 206,
+        headers: {
+          "Content-Range": `bytes ${start}-${end}/${totalBytes}`,
+          "Accept-Ranges": "bytes",
+          "Content-Length": chunk.byteLength.toString(),
+          "Content-Type": contentType,
+          "Cache-Control": "public, max-age=86400, immutable",
+        },
+      });
+    }
 
     return new Response(audioBuffer, {
       status: 200,
       headers: {
         "Content-Type": contentType,
+        "Content-Length": totalBytes.toString(),
         "Cache-Control": "public, max-age=86400, immutable",
         "Accept-Ranges": "bytes",
       },
