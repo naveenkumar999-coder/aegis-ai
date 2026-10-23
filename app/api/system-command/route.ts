@@ -397,6 +397,26 @@ async function executeCloseApp(rawTarget: string) {
   let rawApp = (rawTarget || "").toLowerCase().trim();
   rawApp = rawApp.replace(/the|app|application|in my pc|on my pc|please/gi, "").trim();
 
+  // Handle closing AEGIS itself
+  if (
+    rawApp === "aegis" ||
+    rawApp === "ultron" ||
+    rawApp === "aegis ai" ||
+    rawApp === "this app" ||
+    rawTarget === "close_aegis" ||
+    rawApp.includes("close aegis") ||
+    rawApp.includes("exit aegis")
+  ) {
+    try {
+      await execAsync(`powershell -Command "Stop-Process -Name 'electron','AEGIS','agis' -Force -ErrorAction SilentlyContinue"`).catch(() => {});
+      await execAsync(`taskkill /F /IM electron.exe /IM AEGIS.exe /IM agis.exe`).catch(() => {});
+    } catch {}
+    return NextResponse.json({
+      success: true,
+      message: "Closed AEGIS AI desktop application, Boss!",
+    });
+  }
+
   // Handle closing / minimizing all applications
   if (rawApp === "all" || rawApp === "all windows" || rawApp === "everything") {
     try {

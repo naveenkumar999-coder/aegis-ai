@@ -69,6 +69,7 @@ function createWindow() {
     frame: true,
     autoHideMenuBar: true,
     webPreferences: {
+      preload: path.join(__dirname, "preload.js"),
       nodeIntegration: false,
       contextIsolation: true,
       webSecurity: true,
@@ -86,19 +87,15 @@ function createWindow() {
 
   mainWindow.loadURL(isPopup ? `${SERVER_URL}?mode=popup` : SERVER_URL);
 
-
   mainWindow.once("ready-to-show", () => {
     mainWindow.show();
     mainWindow.focus();
   });
 
-  // Minimize to tray instead of quitting when close button is clicked
-  mainWindow.on("close", (event) => {
-    if (!isQuitting) {
-      event.preventDefault();
-      mainWindow.hide();
-      return false;
-    }
+  // Close and quit cleanly when the window close button is clicked
+  mainWindow.on("close", () => {
+    isQuitting = true;
+    app.quit();
   });
 
   // Open internal popups/overlays as native Electron windows, and external links in default browser
@@ -204,6 +201,21 @@ if (!gotTheLock) {
 
     createTray();
 
+    // IPC Handlers for window controls
+    ipcMain.handle("close-overlay", () => {
+      isQuitting = true;
+      app.quit();
+    });
+
+    ipcMain.handle("quit-app", () => {
+      isQuitting = true;
+      app.quit();
+    });
+
+    ipcMain.handle("minimize-overlay", () => {
+      if (mainWindow) mainWindow.minimize();
+    });
+
     ensureServer(() => {
       createWindow();
     });
@@ -222,14 +234,13 @@ app.on("before-quit", () => {
     try {
       process.kill(-nextProcess.pid);
     } catch {}
+    try {
+      nextProcess.kill();
+    } catch {}
   }
 });
 
 app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") {
-    // Keep alive in tray unless isQuitting
-    if (isQuitting) {
-      app.quit();
-    }
-  }
+  isQuitting = true;
+  app.quit();
 });

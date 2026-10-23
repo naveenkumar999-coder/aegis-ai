@@ -970,6 +970,31 @@ export default function JarvisOrb() {
     return () => window.removeEventListener("keydown", onKey);
   }, [toggleGestures, toggleVoice, toggleMinimize, isOsPopUpActive, aiState]);
 
+  const handleExitApp = () => {
+    try {
+      if (typeof window !== "undefined" && (window as any).electronAPI?.quitApp) {
+        (window as any).electronAPI.quitApp();
+        return;
+      }
+      if (typeof window !== "undefined" && (window as any).electronAPI?.closeOverlay) {
+        (window as any).electronAPI.closeOverlay();
+        return;
+      }
+    } catch {}
+
+    try {
+      fetch("/api/system-command", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "close_aegis", command: "close aegis" }),
+      }).catch(() => {});
+    } catch {}
+
+    if (typeof window !== "undefined") {
+      window.close();
+    }
+  };
+
   const cameraOn = camera === "on";
 
   const winW = typeof window !== "undefined" ? window.innerWidth : 360;
@@ -1108,6 +1133,21 @@ export default function JarvisOrb() {
               onClick={() => setShowSettings(true)}
             >
               {isPopupMode ? "⚙️" : "⚙️ SETTINGS"}
+            </button>
+            <button
+              type="button"
+              className="hud-btn mini-btn"
+              style={{
+                backgroundColor: "rgba(239, 68, 68, 0.15)",
+                borderColor: "rgba(239, 68, 68, 0.5)",
+                color: "#F87171",
+                fontWeight: 700,
+                ...(isPopupMode ? { height: "30px", padding: "0 8px", fontSize: "11px" } : { padding: "4px 10px", fontSize: "11px" }),
+              }}
+              onClick={handleExitApp}
+              title="Close and Exit AEGIS AI"
+            >
+              ✕ {isPopupMode ? "" : "EXIT"}
             </button>
             <div
               className={`ai-state-badge state-${aiState}`}
