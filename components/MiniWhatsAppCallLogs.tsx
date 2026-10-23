@@ -128,11 +128,13 @@ export function MiniWhatsAppCallLogs({ onClose, isMobile = false }: MiniWhatsApp
 
     let uriToPlay = audioDataUri;
 
-    // Auto-route direct Exotel recording URLs through our authenticated streaming proxy
+    // Only route direct Exotel URLs through the proxy if not already routed
     if (
       uriToPlay &&
+      !uriToPlay.startsWith("/api/telephony/recording-audio") &&
       (uriToPlay.includes("recordings.exotel.com") ||
-        (uriToPlay.includes("exotel.com") && !uriToPlay.includes("/api/telephony/recording-audio")))
+        uriToPlay.includes("exotel.com") ||
+        uriToPlay.includes("amazonaws.com"))
     ) {
       uriToPlay = `/api/telephony/recording-audio?url=${encodeURIComponent(uriToPlay)}`;
     }
@@ -141,21 +143,28 @@ export function MiniWhatsAppCallLogs({ onClose, isMobile = false }: MiniWhatsApp
 
     try {
       const audio = new Audio(uriToPlay);
+      audio.preload = "auto";
       activeAudioRef.current = audio;
+
       audio.onended = () => {
         setPlayingAudioId(null);
         activeAudioRef.current = null;
       };
+
       audio.onerror = (e) => {
         console.error("Audio playback error for", uriToPlay, e);
         setPlayingAudioId(null);
         activeAudioRef.current = null;
       };
-      audio.play().catch((err) => {
-        console.error("Audio play() promise rejected:", err);
-        setPlayingAudioId(null);
-        activeAudioRef.current = null;
-      });
+
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise.catch((err) => {
+          console.error("Audio play() promise rejected:", err);
+          setPlayingAudioId(null);
+          activeAudioRef.current = null;
+        });
+      }
     } catch (e) {
       console.error("Failed to initialize Audio:", e);
       setPlayingAudioId(null);

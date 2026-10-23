@@ -8,10 +8,17 @@ const EXOTEL_TOKEN = process.env.EXOTEL_API_TOKEN || "";
 export async function GET(req: Request) {
   try {
     const url = new URL(req.url);
-    const audioUrl = url.searchParams.get("url");
+    let audioUrl = url.searchParams.get("url");
 
     if (!audioUrl) {
       return new Response("Missing audio url parameter", { status: 400 });
+    }
+
+    // Guard: if audioUrl was accidentally double-wrapped with /api/telephony/recording-audio?url=..., unwrap it!
+    while (audioUrl.includes("/api/telephony/recording-audio?url=")) {
+      const idx = audioUrl.indexOf("/api/telephony/recording-audio?url=");
+      const paramPart = audioUrl.substring(idx + "/api/telephony/recording-audio?url=".length);
+      audioUrl = decodeURIComponent(paramPart);
     }
 
     // Only allow streaming from trusted Exotel or AWS domains
@@ -62,6 +69,7 @@ export async function GET(req: Request) {
           "Content-Length": chunk.byteLength.toString(),
           "Content-Type": contentType,
           "Cache-Control": "public, max-age=86400, immutable",
+          "Access-Control-Allow-Origin": "*",
         },
       });
     }
@@ -73,6 +81,7 @@ export async function GET(req: Request) {
         "Content-Length": totalBytes.toString(),
         "Cache-Control": "public, max-age=86400, immutable",
         "Accept-Ranges": "bytes",
+        "Access-Control-Allow-Origin": "*",
       },
     });
   } catch (err: any) {
